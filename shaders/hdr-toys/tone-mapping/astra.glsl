@@ -2412,20 +2412,8 @@ float f_linear(float x, float slope, float intercept) {
     return slope * x + intercept;
 }
 
-// Contrast pivots the linear segment around the mid-gray anchor
-// (midgray, midgray) by moving the y-positions of the shadow and
-// highlight anchors; their x-positions stay fixed, so the toe and
-// shoulder segments always have positive x-extent. The middle slope
-// is 2^c, so equal and opposite settings produce reciprocal mid-tone
-// slopes: the two middle segments are exact inverse lines (applying
-// -c then +c restores the whole mid-range exactly; the toe and
-// shoulder anchors move with c, so no fixed-endpoint curve family
-// can be globally invertible). Equal steps of c are equal perceived
-// contrast steps (Weber's law applies to the slope ratio, even in a
-// perceptually uniform domain). The previous tan(45° ± 40°·c) mapping
-// inverted the middle segment below c = -0.5.
-float f_contrast(float c) {
-    return 1.0 - exp2(c);
+float f_contrast_slope(float c) {
+    return exp2(c);
 }
 
 // Hyperbola tone mapping
@@ -2535,7 +2523,7 @@ float f(
     float midgray   = 0.5 * ow;
     float shadow    = mix(midgray, ob, sw);
     float highlight = mix(midgray, ow, hw);
-    float contrast  = f_contrast(cb);
+    float target_slope = f_contrast_slope(cb);
 
     float x0 = ib;
     float y0 = ob;
@@ -2546,19 +2534,26 @@ float f(
     float x3 = iw;
     float y3 = ow;
 
-    // Contrast pivots the junction positions toward the mid-gray anchor
-    // (midgray, midgray); the x-positions stay fixed.
-    y1 = mix(y1, midgray, contrast);
-    y2 = mix(y2, midgray, contrast);
+    // Pivot the middle line around mid-gray with slope 2^cb. Prefer the
+    // configured x junctions; if their y values cross an output endpoint,
+    // move the junction inward along the same line instead of flattening the
+    // requested contrast with an independent y clamp.
+    y1 = midgray + target_slope * (x1 - midgray);
+    if (y1 < y0) {
+        y1 = y0;
+        x1 = midgray + (y1 - midgray) / target_slope;
+    }
+    y2 = midgray + target_slope * (x2 - midgray);
+    if (y2 > y3) {
+        y2 = y3;
+        x2 = midgray + (y2 - midgray) / target_slope;
+    }
 
-    // High contrast dips the shadow junction below the black floor and
-    // lifts the highlight junction past the white point. Clamp the
-    // y-extents so no segment can ever have negative length in either
-    // dimension (the x-extents are positive by construction).
-    y1 = max(y1, y0);
-    y2 = min(y2, y3);
-
-    float slope = f_slope(x1, y1, x2, y2);
+    // The clamped pivots keep both junctions on the midgray line, so the
+    // middle-segment slope is exactly target_slope. The f_slope recompute
+    // could only differ in the collapsed both-junctions-at-midgray case,
+    // where its zero-denominator guard wrongly returns 1.0.
+    float slope = target_slope;
     float intercept = f_intercept(slope, x1, y1);
 
     if (x >= x1 && x <= x2) {
