@@ -4042,47 +4042,34 @@ vec4 draw_row(float value, vec2 origin, vec2 px, int c0, int c1, int c2) {
 const int METRICS_ROW_COUNT = 7;
 
 vec4 draw_metrics_row(int row, vec2 origin, vec2 px) {
-    if (row == 0)
-        return draw_row(
-            pq_eotf(input_max_i), origin, px, CH_M, CH_A, CH_X
-        );
-    if (row == 1)
-        return draw_row(
-            pq_eotf(input_min_i), origin, px, CH_M, CH_I, CH_N
-        );
-    if (row == 2)
-        return draw_row(
-            pq_eotf(input_avg_i), origin, px, CH_A, CH_V, CH_G
-        );
-    if (row == 3)
-        return draw_row(
-            pq_eotf(metered_histogram_average),
-            origin,
-            px,
-            CH_H,
-            CH_S,
-            CH_T
-        );
-    if (row == 4) {
-        if (metered_zone_valid > 0u)
-            return draw_row(
-                pq_eotf(metered_matrix_average),
-                origin,
-                px,
-                CH_M,
-                CH_A,
-                CH_T
-            );
-        return vec4(0.0);
+    float value = ev;
+    ivec3 label = ivec3(CH_E, CH_V, CH_SPACE);
+
+    if (row == 0) {
+        value = pq_eotf(input_max_i);
+        label = ivec3(CH_M, CH_A, CH_X);
+    } else if (row == 1) {
+        value = pq_eotf(input_min_i);
+        label = ivec3(CH_M, CH_I, CH_N);
+    } else if (row == 2) {
+        value = pq_eotf(input_avg_i);
+        label = ivec3(CH_A, CH_V, CH_G);
+    } else if (row == 3) {
+        value = pq_eotf(metered_histogram_average);
+        label = ivec3(CH_H, CH_S, CH_T);
+    } else if (row == 4 || row == 5) {
+        if (metered_zone_valid == 0u)
+            return vec4(0.0);
+        if (row == 4) {
+            value = pq_eotf(metered_matrix_average);
+            label = ivec3(CH_M, CH_A, CH_T);
+        } else {
+            value = metered_matrix_blend;
+            label = ivec3(CH_M, CH_I, CH_X);
+        }
     }
-    if (row == 5) {
-        if (metered_zone_valid > 0u)
-            return draw_row(
-                metered_matrix_blend, origin, px, CH_M, CH_I, CH_X
-            );
-        return vec4(0.0);
-    }
-    return draw_row(ev, origin, px, CH_E, CH_V, CH_SPACE);
+
+    return draw_row(value, origin, px, label.x, label.y, label.z);
 }
 
 vec4 draw_metrics_panel(vec2 px) {
