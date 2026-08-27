@@ -876,7 +876,7 @@ void hook() {
 //!WIDTH 256
 //!HEIGHT 144
 //!COMPUTE 16 16 16 16
-//!WHEN auto_exposure_anchor 0 > enable_metering 1 > * avg_pq_y 0 > ! * scene_avg 0 > ! * preview_metering enable_metering 1 > * +
+//!WHEN auto_exposure_anchor 0 > preview_metering + enable_metering 1 > *
 //!DESC metering (matrix zones)
 
 // A 256x144 analysis grid maps exactly to 16x9 workgroups. Each workgroup
