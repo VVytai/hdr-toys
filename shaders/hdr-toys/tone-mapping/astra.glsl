@@ -408,12 +408,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(1.0, 0.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -430,12 +430,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(0.0, 1.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -452,12 +452,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(1.0, 0.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -474,12 +474,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(0.0, 1.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -496,12 +496,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(1.0, 0.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -518,12 +518,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(0.0, 1.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -540,12 +540,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(1.0, 0.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -562,12 +562,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(0.0, 1.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -584,12 +584,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(1.0, 0.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -606,12 +606,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(0.0, 1.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -628,12 +628,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(1.0, 0.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -650,12 +650,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(0.0, 1.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -672,12 +672,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(1.0, 0.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -694,12 +694,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(0.0, 1.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -716,12 +716,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(1.0, 0.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
@@ -738,12 +738,12 @@ const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
 const vec2 direction = vec2(0.0, 1.0);
 
 vec4 hook() {
-    vec4 c = METERING_tex(METERING_pos) * weight[0];
+    vec2 c = METERING_tex(METERING_pos).xy * weight[0];
     for (uint i = 1; i < 3; i++) {
-        c += METERING_texOff( direction * offset[i]) * weight[i];
-        c += METERING_texOff(-direction * offset[i]) * weight[i];
+        c += METERING_texOff( direction * offset[i]).xy * weight[i];
+        c += METERING_texOff(-direction * offset[i]).xy * weight[i];
     }
-    return c;
+    return vec4(c, 0.0, 1.0);
 }
 
 //!HOOK OUTPUT
