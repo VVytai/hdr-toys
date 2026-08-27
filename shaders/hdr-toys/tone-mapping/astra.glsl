@@ -2078,6 +2078,13 @@ float output_temporal_time_scale(float normal_scale) {
         : normal_scale;
 }
 
+float reset_auto_exposure(float target) {
+    smoothed_ev = target;
+    smoothed_ev_pts = floatBitsToUint(PTS);
+    smoothed_ev_valid = 1u;
+    return target;
+}
+
 float stabilize_auto_exposure(float target, bool automatic) {
     target = finite_float(target) ? clamp(target, -64.0, 64.0) : 0.0;
     // Self-healing guard: VAR-backed state can hold NaN across shader
@@ -2100,29 +2107,18 @@ float stabilize_auto_exposure(float target, bool automatic) {
         return target;
     }
 
-    if (!automatic || temporal_stable_duration <= 0.0) {
-        smoothed_ev = target;
-        smoothed_ev_pts = floatBitsToUint(PTS);
-        smoothed_ev_valid = 1u;
-        return target;
-    }
+    if (!automatic || temporal_stable_duration <= 0.0)
+        return reset_auto_exposure(target);
 
-    if (smoothed_ev_valid == 0u) {
-        smoothed_ev = target;
-        smoothed_ev_pts = floatBitsToUint(PTS);
-        smoothed_ev_valid = 1u;
-        return target;
-    }
+    if (smoothed_ev_valid == 0u)
+        return reset_auto_exposure(target);
 
     float delta_time = PTS - uintBitsToFloat(smoothed_ev_pts);
     if (abs(delta_time) <= EXPOSURE_PTS_EPSILON)
         return smoothed_ev;
 
-    if (delta_time < 0.0 || delta_time > temporal_stable_duration) {
-        smoothed_ev = target;
-        smoothed_ev_pts = floatBitsToUint(PTS);
-        return target;
-    }
+    if (delta_time < 0.0 || delta_time > temporal_stable_duration)
+        return reset_auto_exposure(target);
 
     float time_scale = target > smoothed_ev
         ? EXPOSURE_RISE_TIME_SCALE
