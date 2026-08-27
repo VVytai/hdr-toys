@@ -1318,6 +1318,14 @@ float matrix_zone_neighbor_difference(uint index, float value) {
     return difference / float(max(count, 1u));
 }
 
+float matrix_difference_confidence(float difference) {
+    return smoothstep(
+        METERING_MATRIX_DIFFERENCE_MIN,
+        METERING_MATRIX_DIFFERENCE_MAX,
+        difference
+    );
+}
+
 vec2 matrix_zone_partial(uint index, float reference_average) {
     if (metered_zone_valid == 0u || index >= METERING_ZONE_COUNT)
         return vec2(0.0);
@@ -1342,11 +1350,7 @@ vec2 matrix_zone_partial(uint index, float reference_average) {
     vec2 centered = 2.0 * position - vec2(1.0);
     float center_emphasis = exp2(-2.0 * dot(centered, centered));
     float difference = abs(zone_average - reference_average);
-    float subject_evidence = smoothstep(
-        METERING_MATRIX_DIFFERENCE_MIN,
-        METERING_MATRIX_DIFFERENCE_MAX,
-        difference
-    );
+    float subject_evidence = matrix_difference_confidence(difference);
     float spatial_weight = 1.0 + METERING_MATRIX_SPATIAL_SCALE *
                            center_emphasis *
                            mix(0.5, 1.0, subject_evidence);
@@ -1397,11 +1401,7 @@ void publish_matrix_average(uint tid) {
     // or backlit subject. Keep at least 25% of the whole-frame estimate so the
     // decision cannot collapse onto a small central region.
     float difference = abs(matrix_average - histogram_average);
-    float matrix_confidence = smoothstep(
-        METERING_MATRIX_DIFFERENCE_MIN,
-        METERING_MATRIX_DIFFERENCE_MAX,
-        difference
-    );
+    float matrix_confidence = matrix_difference_confidence(difference);
     float matrix_weight = mix(
         METERING_MATRIX_WEIGHT_MIN,
         METERING_MATRIX_WEIGHT_MAX,
