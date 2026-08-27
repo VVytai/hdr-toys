@@ -3932,10 +3932,7 @@ vec4 draw_metrics_panel(vec2 px) {
         ? MARGIN * SCALE + PREVIEW_VECTORSCOPE_EXTENT + PREVIEW_PANEL_GAP
         : MARGIN * SCALE;
     vec2 last_origin = vec2(metrics_x, metrics_bottom);
-    vec2 o0 = last_origin - vec2(
-        0.0,
-        float(METRICS_ROW_COUNT - 1) * LINE_H * SCALE
-    );
+    vec2 o0 = vec2(metrics_x, metrics_top);
     vec2 panel_min = o0 - vec2(PAD * SCALE);
     vec2 panel_max = vec2(
         o0.x + (MAX_ROW_WIDTH + PAD) * SCALE,
