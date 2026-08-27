@@ -343,15 +343,15 @@ vec2 metering_source_position(vec2 position, bool portrait) {
         : position;
 }
 
-vec4 sample_metering_oriented(vec2 position, bool portrait) {
-    return METERING_mul * textureLod(
+vec2 sample_metering_oriented(vec2 position, bool portrait) {
+    return (METERING_mul * textureLod(
         METERING_raw,
         metering_source_position(position, portrait),
         0.0
-    );
+    )).xy;
 }
 
-vec4 sample_metering_downscaled() {
+vec2 sample_metering_downscaled() {
     const vec2 target_size = vec2(512.0, 288.0);
     bool portrait = METERING_size.y > METERING_size.x;
     vec2 oriented_size = portrait ? METERING_size.yx : METERING_size;
@@ -365,7 +365,7 @@ vec4 sample_metering_downscaled() {
     // downscaling the four taps land at the centers of the source 2x2 block.
     vec2 offset = 0.5 * max(scale - vec2(1.0), vec2(0.0));
     vec2 normalized_offset = offset / oriented_size;
-    vec4 sum = sample_metering_oriented(
+    vec2 sum = sample_metering_oriented(
                    METERING_pos + vec2(-normalized_offset.x,
                                        -normalized_offset.y),
                    portrait
@@ -388,7 +388,7 @@ vec4 sample_metering_downscaled() {
     return sum * 0.25;
 }
 
-vec4 hook() { return sample_metering_downscaled(); }
+vec4 hook() { return vec4(sample_metering_downscaled(), 0.0, 1.0); }
 
 //!HOOK OUTPUT
 //!BIND METERING
