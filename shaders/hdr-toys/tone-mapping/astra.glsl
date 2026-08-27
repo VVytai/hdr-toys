@@ -3434,6 +3434,8 @@ const uint PREVIEW_HISTOGRAM_SIZE = 64u;
 const float PREVIEW_HISTOGRAM_BIN_WIDTH = 4.0;
 const float PREVIEW_HISTOGRAM_EXTENT = 256.0;
 const uint PREVIEW_VECTORSCOPE_SIZE = 96u;
+const uint VECTORSCOPE_CHANNEL_COUNT = 4u;
+
 // The density reference is the fixed 128-bin display scale from the
 // historical calibration (the preview grid was 128 bins until it was
 // retuned to 96). Normalizing by (grid / 128)^2 keeps the trace
@@ -3663,7 +3665,7 @@ vec4 draw_vectorscope(vec2 px) {
         uvec2(PREVIEW_VECTORSCOPE_SIZE - 1u)
     );
     uint index = bin.y * PREVIEW_VECTORSCOPE_SIZE + bin.x;
-    uint base = index * 4u;
+    uint base = index * VECTORSCOPE_CHANNEL_COUNT;
     float count = float(vectorscope_bins[base + 0u]);
     // The density reference is the calibrated 128-bin display scale from
     // the last preview grid retune. The (grid / 128)^2 normalization keeps
