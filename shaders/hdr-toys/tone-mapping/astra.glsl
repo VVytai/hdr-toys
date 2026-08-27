@@ -3867,19 +3867,25 @@ vec4 draw_metrics_row(int row, vec2 origin, vec2 px) {
             CH_S,
             CH_T
         );
-    if (row == 4)
-        return draw_row(
-            pq_eotf(metered_matrix_average),
-            origin,
-            px,
-            CH_M,
-            CH_A,
-            CH_T
-        );
-    if (row == 5)
-        return draw_row(
-            metered_matrix_blend, origin, px, CH_M, CH_I, CH_X
-        );
+    if (row == 4) {
+        if (metered_zone_valid > 0u)
+            return draw_row(
+                pq_eotf(metered_matrix_average),
+                origin,
+                px,
+                CH_M,
+                CH_A,
+                CH_T
+            );
+        return vec4(0.0);
+    }
+    if (row == 5) {
+        if (metered_zone_valid > 0u)
+            return draw_row(
+                metered_matrix_blend, origin, px, CH_M, CH_I, CH_X
+            );
+        return vec4(0.0);
+    }
     return draw_row(ev, origin, px, CH_E, CH_V, CH_SPACE);
 }
 
