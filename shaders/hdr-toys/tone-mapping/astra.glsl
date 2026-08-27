@@ -3753,9 +3753,18 @@ uint integer_digit_count(uint int_part) {
     return digits;
 }
 
+const uint NUMBER_FIXED_MAX = 9999999u;
+
+uint number_fixed_value(float value) {
+    float magnitude = abs(value);
+    float scaled = magnitude >= 0.0
+        ? min(magnitude * 100.0 + 0.5, float(NUMBER_FIXED_MAX))
+        : 0.0;
+    return uint(scaled);
+}
+
 float number_width(float value) {
-    float abs_val = min(abs(value), 99999.99);
-    uint int_part = uint(abs_val * 100.0 + 0.5) / 100u;
+    uint int_part = number_fixed_value(value) / 100u;
     uint digits = integer_digit_count(int_part);
 
     float characters = float(digits + 3u) + (value < 0.0 ? 1.0 : 0.0);
@@ -3788,8 +3797,7 @@ uint decimal_divisor(uint position_from_right) {
 // repeated glyph lookups caused D3DCompiler's inliner to grow exponentially.
 int number_character(float value, int index) {
     bool negative = value < 0.0;
-    float abs_val = min(abs(value), 99999.99);
-    uint fixed_value = uint(abs_val * 100.0 + 0.5);
+    uint fixed_value = number_fixed_value(value);
     uint int_part = fixed_value / 100u;
     uint dec_part = fixed_value - int_part * 100u;
     uint digits = integer_digit_count(int_part);
