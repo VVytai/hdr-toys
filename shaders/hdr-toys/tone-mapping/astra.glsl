@@ -1594,7 +1594,7 @@ uint pts_to_uint(float x) {
     return floatBitsToUint(x);
 }
 
-bool valid_pts(float value) {
+bool finite_float(float value) {
     return !isnan(value) && !isinf(value);
 }
 
@@ -1737,7 +1737,7 @@ void temporal_prepare_frame() {
     temporal_frame_operation = TEMPORAL_FRAME_SKIP;
     temporal_reference_operation = TEMPORAL_REFERENCE_KEEP;
 
-    if (!valid_pts(PTS)) {
+    if (!finite_float(PTS)) {
         // A discontinuous frame may carry unrelated content. Invalidate and
         // skip histogram learning entirely (frame operation stays SKIP):
         // initializing the reference from it could seed a false scene-cut
@@ -1854,7 +1854,7 @@ const float CURVE_TEMPORAL_TIME_SCALE = 0.35;
 const float CURVE_TEMPORAL_MIN_TIME_CONSTANT = 1.0 / 240.0;
 const float CURVE_TEMPORAL_PTS_EPSILON = 1e-6;
 
-bool valid_pts(float value) {
+bool finite_float(float value) {
     return !isnan(value) && !isinf(value);
 }
 
@@ -2065,7 +2065,21 @@ float output_temporal_time_scale(float normal_scale) {
 }
 
 float stabilize_auto_exposure(float target, bool automatic) {
-    if (!valid_pts(PTS)) {
+    target = finite_float(target) ? clamp(target, -64.0, 64.0) : 0.0;
+    // Self-healing guard: VAR-backed state can hold NaN across shader
+    // reloads. Treat such state as uninitialized rather than mixing NaN into
+    // the ramp. The pts field needs its own check: a NaN there fails every
+    // range comparison below and re-poisons smoothed_ev through the mix.
+    //
+    // Likely unreachable from in-shader writes (every write site produces a
+    // finite value), kept as defense.
+    if (smoothed_ev_valid > 0u &&
+        (!finite_float(smoothed_ev) ||
+         !finite_float(uintBitsToFloat(smoothed_ev_pts)))) {
+        smoothed_ev_valid = 0u;
+    }
+
+    if (!finite_float(PTS)) {
         // Only the validity flag matters here: every smoothed_ev read is
         // gated on it, and the next finite frame re-baselines the state.
         smoothed_ev_valid = 0u;
@@ -2114,7 +2128,7 @@ void prepare_curve_temporal() {
     curve_temporal_alpha = 1.0;
     curve_temporal_reset = 1u;
 
-    if (!valid_pts(PTS)) {
+    if (!finite_float(PTS)) {
         curve_temporal_pts = 0u;
         curve_temporal_valid = 0u;
         return;
@@ -2802,18 +2816,32 @@ void generate_LAB_to_RGB_lut(ivec2 atlas_position) {
     store_atlas(atlas_position, Jab_to_RGB(lab));
 }
 
+bool finite_float(float value) {
+    return !isnan(value) && !isinf(value);
+}
+
 float stabilize_curve_value(int index, float target) {
-    if (curve_temporal_reset > 0u) {
+    // curve_temporal_reset stays armed until a frame has hard-written the
+    // whole row, so reset > 0 implies the SSBO is either uninitialized or
+    // being re-baselined: never read it for history in that case.
+    bool history_valid = curve_temporal_reset == 0u &&
+                         finite_float(smoothed_curve[index]);
+    if (!finite_float(target))
+        target = history_valid ? smoothed_curve[index] : 0.0;
+
+    if (curve_temporal_reset > 0u || !history_valid) {
         smoothed_curve[index] = target;
         return target;
     }
 
-    smoothed_curve[index] = mix(
+    float value = mix(
         smoothed_curve[index],
         target,
         curve_temporal_alpha
     );
-    return smoothed_curve[index];
+    value = finite_float(value) ? value : target;
+    smoothed_curve[index] = value;
+    return value;
 }
 
 void generate_curve_lut(ivec2 atlas_position) {
