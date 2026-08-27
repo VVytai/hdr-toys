@@ -2826,6 +2826,28 @@ vec3 pq_eotf_inv(vec3 x) {
     return pow((c1 + c2 * t) / (1.0 + c3 * t), vec3(m2));
 }
 
+vec3 sanitize_vectorscope_rgb(
+    vec3 rgb,
+    out float safe_reference_white
+) {
+    safe_reference_white = reference_white > 0.0
+        ? min(reference_white, pw)
+        : 0.0;
+    vec3 absolute_rgb = rgb * safe_reference_white;
+    return vec3(
+        absolute_rgb.r > 0.0 ? min(absolute_rgb.r, pw) : 0.0,
+        absolute_rgb.g > 0.0 ? min(absolute_rgb.g, pw) : 0.0,
+        absolute_rgb.b > 0.0 ? min(absolute_rgb.b, pw) : 0.0
+    );
+}
+
+vec2 sanitize_vectorscope_coordinates(vec2 coordinates) {
+    return vec2(
+        coordinates.x > 0.0 ? min(coordinates.x, 1.0) : 0.0,
+        coordinates.y > 0.0 ? min(coordinates.y, 1.0) : 0.0
+    );
+}
+
 vec3 fetch_vectorscope_atlas(ivec2 position) {
     return texelFetch(LUTS_raw, position, 0).rgb;
 }
@@ -2875,12 +2897,7 @@ void select_vectorscope_tetrahedron(
     }
 }
 
-vec3 sample_vectorscope_rgb_to_jab(vec3 rgb) {
-    vec3 absolute_rgb = clamp(
-        max(rgb, vec3(0.0)) * max(reference_white, 0.0),
-        0.0,
-        pw
-    );
+vec3 sample_vectorscope_rgb_to_jab(vec3 absolute_rgb) {
     vec3 position = pq_eotf_inv(absolute_rgb) *
                     float(VECTORSCOPE_LUT_LAST);
     ivec3 base_texel = ivec3(floor(position));
@@ -2922,7 +2939,7 @@ uint vectorscope_bin(vec2 ab) {
         0.5 - 0.5 * ab.y / VECTORSCOPE_AB_RANGE
     );
     uvec2 bin = min(
-        uvec2(clamp(coordinate, 0.0, 1.0) *
+        uvec2(sanitize_vectorscope_coordinates(coordinate) *
               float(VECTORSCOPE_SIZE)),
         uvec2(VECTORSCOPE_SIZE - 1u)
     );
@@ -2931,10 +2948,16 @@ uint vectorscope_bin(vec2 ab) {
 
 void hook() {
     vec3 rgb = HOOKED_tex(HOOKED_pos).rgb;
-    vec3 jab = sample_vectorscope_rgb_to_jab(rgb);
+    float safe_reference_white;
+    vec3 absolute_rgb = sanitize_vectorscope_rgb(
+        rgb,
+        safe_reference_white
+    );
+    vec3 jab = sample_vectorscope_rgb_to_jab(absolute_rgb);
     uint index = vectorscope_bin(jab.yz);
     uint base = index * VECTORSCOPE_CHANNEL_COUNT;
-    vec3 positive_rgb = max(rgb, vec3(0.0));
+    vec3 positive_rgb = absolute_rgb /
+                        max(safe_reference_white, 1e-6);
     float encoding_peak = max(
         max(max(positive_rgb.r, positive_rgb.g), positive_rgb.b),
         1.0
@@ -2990,6 +3013,30 @@ const float pw = 10000.0;
 vec3 pq_eotf_inv(vec3 x) {
     vec3 t = pow(x / pw, vec3(m1));
     return pow((c1 + c2 * t) / (1.0 + c3 * t), vec3(m2));
+}
+
+vec3 sanitize_absolute_rgb(vec3 rgb) {
+    float safe_reference_white = reference_white > 0.0
+        ? min(reference_white, pw)
+        : 0.0;
+    vec3 absolute_rgb = rgb * safe_reference_white;
+    return vec3(
+        absolute_rgb.r > 0.0 ? min(absolute_rgb.r, pw) : 0.0,
+        absolute_rgb.g > 0.0 ? min(absolute_rgb.g, pw) : 0.0,
+        absolute_rgb.b > 0.0 ? min(absolute_rgb.b, pw) : 0.0
+    );
+}
+
+vec3 sanitize_unit_coordinates(vec3 coordinates) {
+    return vec3(
+        coordinates.x > 0.0 ? min(coordinates.x, 1.0) : 0.0,
+        coordinates.y > 0.0 ? min(coordinates.y, 1.0) : 0.0,
+        coordinates.z > 0.0 ? min(coordinates.z, 1.0) : 0.0
+    );
+}
+
+float sanitize_unit_coordinate(float coordinate) {
+    return coordinate > 0.0 ? min(coordinate, 1.0) : 0.0;
 }
 
 vec3 fetch_atlas_raw(ivec2 position) {
@@ -3059,7 +3106,8 @@ vec3 sample_lut_tetrahedral(vec3 lut_coordinates, int lut) {
             REVERSE_CHROMA_LUT_LAST,
             REVERSE_CHROMA_LUT_LAST
         );
-    vec3 position = clamp(lut_coordinates, 0.0, 1.0) * vec3(last_texel);
+    vec3 position = sanitize_unit_coordinates(lut_coordinates) *
+                    vec3(last_texel);
     ivec3 base_texel = ivec3(floor(position));
     vec3 fraction = fract(position);
 
@@ -3100,12 +3148,7 @@ float encode_output_lightness(float lightness) {
 }
 
 vec3 RGB_to_lut_coordinates(vec3 rgb) {
-    vec3 absolute_rgb = clamp(
-        max(rgb, vec3(0.0)) * max(reference_white, 0.0),
-        0.0,
-        pw
-    );
-    return pq_eotf_inv(absolute_rgb);
+    return pq_eotf_inv(sanitize_absolute_rgb(rgb));
 }
 
 vec3 LAB_to_lut_coordinates(vec3 lab) {
@@ -3133,7 +3176,8 @@ vec3 LAB_to_RGB(vec3 lab) {
 }
 
 float curve(float x) {
-    float position = clamp(x, 0.0, 1.0) * float(CURVE_SIZE - 1);
+    float position = sanitize_unit_coordinate(x) *
+                     float(CURVE_SIZE - 1);
     int lower_index = int(floor(position));
     int upper_index = min(lower_index + 1, CURVE_SIZE - 1);
     float weight = fract(position);
