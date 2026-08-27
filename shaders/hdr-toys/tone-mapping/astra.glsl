@@ -948,7 +948,7 @@ void clear_zone_histogram(uint tid) {
         zone_histogram[tid] = 0u;
 }
 
-uint retained_zone_count(
+uint retained_count(
     uint cumulative_before,
     uint cumulative,
     uint lower_target,
@@ -985,7 +985,7 @@ void publish_matrix_zone(uint zone_index) {
         uint packed_value = zone_histogram[i];
         uint sample_count = matrix_zone_bin_count(packed_value);
         uint next = cumulative + sample_count;
-        uint retained = retained_zone_count(
+        uint retained = retained_count(
             cumulative,
             next,
             lower_target,
@@ -1124,7 +1124,7 @@ void scan_histogram_blocks(uint tid, uint block_count) {
     }
 }
 
-uint retained_histogram_count(
+uint retained_count(
     uint cumulative_before,
     uint cumulative,
     uint lower_target,
@@ -1153,7 +1153,7 @@ float global_histogram_average_partial(
 
     for (uint i = 0u; i < METERING_BINS_PER_THREAD; i++) {
         uint next = cumulative + counts[i];
-        uint retained = retained_histogram_count(
+        uint retained = retained_count(
             cumulative,
             next,
             targets.x,
@@ -2732,7 +2732,7 @@ float f(float x, float iw, float ib, float ow, float ob) {
     );
 }
 
-float curve(float x) {
+float evaluate_tone_curve(float x) {
     float ow = output_white_j;
     float ob = output_black_j;
     float iw = I_to_J(iz_eotf_inv(pq_eotf(max_rgb)));
@@ -2861,7 +2861,7 @@ float stabilize_curve_value(int index, float target) {
 void generate_curve_lut(ivec2 atlas_position) {
     int index = atlas_position.x;
     float coordinate = float(index) / float(CURVE_SIZE - 1);
-    float value = stabilize_curve_value(index, curve(coordinate));
+    float value = stabilize_curve_value(index, evaluate_tone_curve(coordinate));
     store_atlas(atlas_position, vec3(value, 0.0, 0.0));
 }
 
@@ -2976,7 +2976,7 @@ vec3 sanitize_vectorscope_rgb(
     return sanitize_bounded(absolute_rgb, 0.0, pw);
 }
 
-vec3 fetch_vectorscope_atlas(ivec2 position) {
+vec3 fetch_atlas_raw(ivec2 position) {
     return texelFetch(LUTS_raw, position, 0).rgb;
 }
 
@@ -2985,10 +2985,10 @@ vec3 fetch_vectorscope_lut(ivec3 texel) {
         texel.x + texel.y * VECTORSCOPE_LUT_SIZE,
         VECTORSCOPE_RGB_TO_LAB_ROW + texel.z
     );
-    return fetch_vectorscope_atlas(atlas_position);
+    return fetch_atlas_raw(atlas_position);
 }
 
-void select_vectorscope_tetrahedron(
+void select_tetrahedron(
     vec3 fraction,
     out ivec3 second_offset,
     out ivec3 third_offset,
@@ -3034,7 +3034,7 @@ vec3 sample_vectorscope_rgb_to_jab(vec3 absolute_rgb) {
     ivec3 second_offset;
     ivec3 third_offset;
     vec3 weights;
-    select_vectorscope_tetrahedron(
+    select_tetrahedron(
         fraction,
         second_offset,
         third_offset,
@@ -3301,7 +3301,7 @@ vec3 LAB_to_RGB(vec3 lab) {
     return sample_lut_tetrahedral(coordinates, LAB_TO_RGB_LUT);
 }
 
-float curve(float x) {
+float sample_tone_curve_lut(float x) {
     float position = sanitize_bounded(x, 0.0, 1.0) *
                      float(CURVE_SIZE - 1);
     int lower_index = int(floor(position));
@@ -3343,7 +3343,7 @@ vec2 chroma_correction(vec2 ab, float l1, float l2) {
 }
 
 vec3 tone_mapping(vec3 lab) {
-    float l2 = curve(lab.x);
+    float l2 = sample_tone_curve_lut(lab.x);
     vec2 ab2 = chroma_correction(lab.yz, lab.x, l2);
     return vec3(l2, ab2);
 }
@@ -3403,22 +3403,22 @@ float pq_eotf(float x) {
 }
 
 float pq_eotf_inv(float x) {
-    float t = pow(max(x, 0.0) / pw, m1);
+    float t = pow(x / pw, m1);
     return pow((c1 + c2 * t) / (1.0 + c3 * t), m2);
 }
 
 float iz_eotf_inv(float x) {
-    float t = pow(max(x, 0.0) / pw, m1);
+    float t = pow(x / pw, m1);
     return pow((c1 + c2 * t) / (1.0 + c3 * t), m2_z);
 }
 
 float iz_eotf(float x) {
-    float t = pow(max(x, 0.0), 1.0 / m2_z);
+    float t = pow(x, 1.0 / m2_z);
     return pow(max(t - c1, 0.0) / (c2 - c3 * t), 1.0 / m1) * pw;
 }
 
 float I_to_J(float I) {
-    return ((1.0 + d) * I) / (1.0 + d * I) - d0;
+    return ((1.0 + d) * I) / (1.0 + (d * I)) - d0;
 }
 
 float J_to_I(float J) {
