@@ -3471,10 +3471,6 @@ vec4 draw_matrix_metering(vec2 position) {
         PREVIEW_MATRIX_SIZE - uvec2(1u)
     );
     uint index = zone.y * PREVIEW_MATRIX_SIZE.x + zone.x;
-    float zone_average = metered_zone_average[index];
-    // In preview mode the statistics pass repurposes the spread slot as the
-    // resolved zone weight after all spread-dependent calculations finish.
-    float zone_weight = metered_zone_spread[index];
 
     vec2 oriented_size = HOOKED_size.y > HOOKED_size.x
         ? HOOKED_size.yx
@@ -3486,6 +3482,9 @@ vec4 draw_matrix_metering(vec2 position) {
     if (min(edge_distance.x, edge_distance.y) < 1.0)
         return vec4(vec3(0.82), 0.55);
 
+    // In preview mode the statistics pass repurposes the spread slot as the
+    // resolved zone weight after all spread-dependent calculations finish.
+    float zone_weight = metered_zone_spread[index];
     if (zone_weight <= 0.0) {
         vec2 oriented_px = clamped_position * oriented_size;
         float hatch = step(
@@ -3495,6 +3494,7 @@ vec4 draw_matrix_metering(vec2 position) {
         return vec4(mix(vec3(0.04), vec3(0.18), hatch), 0.32);
     }
 
+    float zone_average = metered_zone_average[index];
     float signed_difference = clamp(
         (zone_average - metered_histogram_average) /
         PREVIEW_MATRIX_DIFFERENCE_RANGE,
