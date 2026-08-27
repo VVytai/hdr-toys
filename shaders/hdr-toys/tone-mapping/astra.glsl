@@ -4068,10 +4068,19 @@ vec4 draw_row(float value, vec2 origin, vec2 px, int c0, int c1, int c2) {
         : vec4(0.0);
 }
 
-const int METRICS_ROW_COUNT = 7;
+const int BASE_METRICS_ROW_COUNT = 4;
+const int HISTOGRAM_METRICS_ROW_COUNT = 1;
+const int MATRIX_METRICS_ROW_COUNT = 2;
 
-vec4 draw_metrics_row(int row, vec2 origin, vec2 px) {
-    float value = ev;
+vec4 draw_metrics_row(
+    int row,
+    int row_count,
+    vec2 origin,
+    vec2 px,
+    bool show_histogram_metrics,
+    bool show_matrix_metrics
+) {
+    float value = 0.0;
     ivec3 label = ivec3(CH_E, CH_V, CH_SPACE);
 
     if (row == 0) {
@@ -4083,19 +4092,22 @@ vec4 draw_metrics_row(int row, vec2 origin, vec2 px) {
     } else if (row == 2) {
         value = pq_eotf(input_avg_i);
         label = ivec3(CH_A, CH_V, CH_G);
-    } else if (row == 3) {
+    } else if (show_histogram_metrics && row == 3) {
         value = pq_eotf(metered_histogram_average);
         label = ivec3(CH_H, CH_S, CH_T);
-    } else if (row == 4 || row == 5) {
-        if (metered_zone_valid == 0u)
-            return vec4(0.0);
-        if (row == 4) {
-            value = pq_eotf(metered_matrix_average);
-            label = ivec3(CH_M, CH_A, CH_T);
-        } else {
-            value = metered_matrix_blend;
-            label = ivec3(CH_M, CH_I, CH_X);
-        }
+    } else if (show_matrix_metrics && row == 4) {
+        value = pq_eotf(metered_matrix_average);
+        label = ivec3(CH_M, CH_A, CH_T);
+    } else if (show_matrix_metrics && row == 5) {
+        value = metered_matrix_blend;
+        label = ivec3(CH_M, CH_I, CH_X);
+    } else if (row == row_count - 1) {
+        value = ev;
+    } else {
+        // The EV row is always last. Any other unhandled row draws nothing,
+        // so a future row insertion cannot silently relabel EV or duplicate
+        // a row through the old fall-through.
+        return vec4(0.0);
     }
 
     return draw_row(value, origin, px, label.x, label.y, label.z);
@@ -4104,9 +4116,22 @@ vec4 draw_metrics_row(int row, vec2 origin, vec2 px) {
 vec4 draw_metrics_panel(vec2 px) {
     // The longest row contains four label characters and a signed 5.2 number.
     const float MAX_ROW_WIDTH = 13.0 * (CHAR_W + SPACING);
+    bool show_histogram_metrics = enable_metering > 1u;
+    bool show_matrix_metrics = show_histogram_metrics &&
+                               metered_zone_valid > 0u;
+    // Reserve the histogram and matrix rows whenever enable_metering > 1,
+    // not only while they are shown: metered_zone_valid can appear and
+    // disappear during playback, and a row count that follows it moves the
+    // panel top and can flip the left/right column placement. The matrix
+    // rows stay blank in the reserved space while zone data is absent.
+    int row_count = BASE_METRICS_ROW_COUNT +
+                    (show_histogram_metrics
+                        ? HISTOGRAM_METRICS_ROW_COUNT +
+                          MATRIX_METRICS_ROW_COUNT
+                        : 0);
     float metrics_bottom = HOOKED_size.y - MARGIN * SCALE - CHAR_H * SCALE;
     float metrics_top = metrics_bottom -
-                        float(METRICS_ROW_COUNT - 1) * LINE_H * SCALE;
+                        float(row_count - 1) * LINE_H * SCALE;
     float chart_stack_bottom = MARGIN * SCALE +
                                PREVIEW_HISTOGRAM_EXTENT +
                                PREVIEW_PANEL_GAP +
@@ -4127,22 +4152,16 @@ vec4 draw_metrics_panel(vec2 px) {
 
     float label_width = 4.0 * (CHAR_W + SPACING);
     float pq_width = max(
-        max(
-            pq_number_width(input_max_i),
-            pq_number_width(input_min_i)
-        ),
-        max(
-            pq_number_width(input_avg_i),
-            max(
-                pq_number_width(metered_histogram_average),
-                pq_number_width(metered_matrix_average)
-            )
-        )
+        max(pq_number_width(input_max_i), pq_number_width(input_min_i)),
+        pq_number_width(input_avg_i)
     );
-    float scalar_width = max(
-        number_width(metered_matrix_blend),
-        number_width(ev)
-    );
+    if (show_histogram_metrics)
+        pq_width = max(pq_width, pq_number_width(metered_histogram_average));
+    if (show_matrix_metrics)
+        pq_width = max(pq_width, pq_number_width(metered_matrix_average));
+    float scalar_width = number_width(ev);
+    if (show_matrix_metrics)
+        scalar_width = max(scalar_width, number_width(metered_matrix_blend));
     float max_w = label_width + max(pq_width, scalar_width);
     if (px.x > o0.x + (max_w + PAD) * SCALE)
         return vec4(0.0);
@@ -4151,9 +4170,19 @@ vec4 draw_metrics_panel(vec2 px) {
     float row_stride = LINE_H * SCALE;
     int row = int(floor((px.y - o0.y) / row_stride));
 
-    if (row >= 0 && row < METRICS_ROW_COUNT) {
+    if (row >= 0 && row < row_count) {
         vec2 origin = o0 + vec2(0.0, float(row) * row_stride);
-        r = max(r, draw_metrics_row(row, origin, px));
+        r = max(
+            r,
+            draw_metrics_row(
+                row,
+                row_count,
+                origin,
+                px,
+                show_histogram_metrics,
+                show_matrix_metrics
+            )
+        );
     }
 
     return r;
