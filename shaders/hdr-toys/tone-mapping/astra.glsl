@@ -3484,6 +3484,14 @@ vec2 preview_histogram_source_interval(uint displayed_index) {
     return vec2(source_lower, max(source_upper, source_lower));
 }
 
+float histogram_bin_overlap(vec2 interval, uint index) {
+    float bin_start = float(index);
+    return max(
+        min(interval.y, bin_start + 1.0) - max(interval.x, bin_start),
+        0.0
+    );
+}
+
 float preview_histogram_count(vec2 source_interval) {
     vec2 interval = source_interval * float(PREVIEW_HISTOGRAM_RAW_SIZE);
     uint first = min(uint(floor(interval.x)),
@@ -3492,10 +3500,7 @@ float preview_histogram_count(vec2 source_interval) {
     float count = 0.0;
 
     for (uint i = first; i < end; i++) {
-        float overlap = max(
-            min(interval.y, float(i + 1u)) - max(interval.x, float(i)),
-            0.0
-        );
+        float overlap = histogram_bin_overlap(interval, i);
         count += float(metered_histogram[i]) * overlap;
     }
 
@@ -3512,10 +3517,7 @@ float preview_reference_histogram_count(
     float count = 0.0;
 
     for (uint i = first; i < end; i++) {
-        float overlap = max(
-            min(interval.y, float(i + 1u)) - max(interval.x, float(i)),
-            0.0
-        );
+        float overlap = histogram_bin_overlap(interval, i);
         count += metered_reference_histogram[i] * total * overlap;
     }
 
