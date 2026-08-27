@@ -253,19 +253,25 @@ float RGB_to_Y(vec3 rgb) {
     return dot(rgb, coefficients);
 }
 
+float sanitize_bounded(float value, float lower_bound, float upper_bound) {
+    return value > lower_bound ? min(value, upper_bound) : lower_bound;
+}
+
 float metering_intensity(vec3 rgb) {
     float y = RGB_to_Y(rgb);
     // The ordered comparison rejects NaN as well as non-positive values
     // before the fractional PQ power can turn -0.0 into NaN.
-    float y_abs = y > 0.0 ? min(y * reference_white, pw) : 0.0;
+    float y_abs = sanitize_bounded(y * reference_white, 0.0, pw);
     return pq_eotf_inv(y_abs);
 }
 
 float metering_max_rgb(vec3 rgb) {
     float maximum = max(max(rgb.r, rgb.g), rgb.b);
-    float maximum_abs = maximum > 0.0
-        ? min(maximum * reference_white, pw)
-        : 0.0;
+    float maximum_abs = sanitize_bounded(
+        maximum * reference_white,
+        0.0,
+        pw
+    );
     return pq_eotf_inv(maximum_abs);
 }
 
@@ -790,6 +796,10 @@ uint to_histogram_bin(float x) {
     return min(to_uint(x) >> 2u, 1023u);
 }
 
+float sanitize_bounded(float value, float lower_bound, float upper_bound) {
+    return value > lower_bound ? min(value, upper_bound) : lower_bound;
+}
+
 vec2 fetch_metering(ivec2 position) {
     return (METERING_mul * texelFetch(METERING_raw, position, 0)).xy;
 }
@@ -823,7 +833,7 @@ void accumulate_workgroup_metering(vec4 intensities, vec4 maxima) {
     // Keep NaN and negative zero out of the integer ordering: their patterns
     // sort above every finite value in [0, 1]. Non-negative finite floats have
     // the same ordering as their uint bit patterns, retaining full precision.
-    maximum = maximum > 0.0 ? min(maximum, 1.0) : 0.0;
+    maximum = sanitize_bounded(maximum, 0.0, 1.0);
     atomicMax(
         smax_rgb,
         floatBitsToUint(maximum)
@@ -1903,12 +1913,16 @@ float RGB_to_Y(vec3 rgb) {
     return dot(rgb, coefficients);
 }
 
+float sanitize_bounded(float value, float lower_bound, float upper_bound) {
+    return value > lower_bound ? min(value, upper_bound) : lower_bound;
+}
+
 float sanitize_metadata_pq(float value) {
-    return value > 0.0 ? min(value, 1.0) : 0.0;
+    return sanitize_bounded(value, 0.0, 1.0);
 }
 
 float sanitize_metadata_nits(float value) {
-    return value > 0.0 ? min(value, pw) : 0.0;
+    return sanitize_bounded(value, 0.0, pw);
 }
 
 vec3 sanitize_metadata_nits(vec3 value) {
@@ -2172,7 +2186,7 @@ float apply_exposure_to_pq(float value, float scale) {
     float luminance = pq_eotf(value) * scale;
     // Match the per-pixel LUT-coordinate path. Values above the PQ mastering
     // range cannot reach tone mapping and would cross the J transform's pole.
-    luminance = luminance > 0.0 ? min(luminance, pw) : 0.0;
+    luminance = sanitize_bounded(luminance, 0.0, pw);
     return pq_eotf_inv(luminance);
 }
 
@@ -2934,26 +2948,32 @@ vec3 pq_eotf_inv(vec3 x) {
     return pow((c1 + c2 * t) / (1.0 + c3 * t), vec3(m2));
 }
 
+float sanitize_bounded(float value, float lower_bound, float upper_bound) {
+    return value > lower_bound ? min(value, upper_bound) : lower_bound;
+}
+
+vec2 sanitize_bounded(vec2 value, float lower_bound, float upper_bound) {
+    return vec2(
+        sanitize_bounded(value.x, lower_bound, upper_bound),
+        sanitize_bounded(value.y, lower_bound, upper_bound)
+    );
+}
+
+vec3 sanitize_bounded(vec3 value, float lower_bound, float upper_bound) {
+    return vec3(
+        sanitize_bounded(value.r, lower_bound, upper_bound),
+        sanitize_bounded(value.g, lower_bound, upper_bound),
+        sanitize_bounded(value.b, lower_bound, upper_bound)
+    );
+}
+
 vec3 sanitize_vectorscope_rgb(
     vec3 rgb,
     out float safe_reference_white
 ) {
-    safe_reference_white = reference_white > 0.0
-        ? min(reference_white, pw)
-        : 0.0;
+    safe_reference_white = sanitize_bounded(reference_white, 0.0, pw);
     vec3 absolute_rgb = rgb * safe_reference_white;
-    return vec3(
-        absolute_rgb.r > 0.0 ? min(absolute_rgb.r, pw) : 0.0,
-        absolute_rgb.g > 0.0 ? min(absolute_rgb.g, pw) : 0.0,
-        absolute_rgb.b > 0.0 ? min(absolute_rgb.b, pw) : 0.0
-    );
-}
-
-vec2 sanitize_vectorscope_coordinates(vec2 coordinates) {
-    return vec2(
-        coordinates.x > 0.0 ? min(coordinates.x, 1.0) : 0.0,
-        coordinates.y > 0.0 ? min(coordinates.y, 1.0) : 0.0
-    );
+    return sanitize_bounded(absolute_rgb, 0.0, pw);
 }
 
 vec3 fetch_vectorscope_atlas(ivec2 position) {
@@ -3047,7 +3067,7 @@ uint vectorscope_bin(vec2 ab) {
         0.5 - 0.5 * ab.y / VECTORSCOPE_AB_RANGE
     );
     uvec2 bin = min(
-        uvec2(sanitize_vectorscope_coordinates(coordinate) *
+        uvec2(sanitize_bounded(coordinate, 0.0, 1.0) *
               float(VECTORSCOPE_SIZE)),
         uvec2(VECTORSCOPE_SIZE - 1u)
     );
@@ -3123,28 +3143,26 @@ vec3 pq_eotf_inv(vec3 x) {
     return pow((c1 + c2 * t) / (1.0 + c3 * t), vec3(m2));
 }
 
+float sanitize_bounded(float value, float lower_bound, float upper_bound) {
+    return value > lower_bound ? min(value, upper_bound) : lower_bound;
+}
+
+vec3 sanitize_bounded(vec3 value, float lower_bound, float upper_bound) {
+    return vec3(
+        sanitize_bounded(value.r, lower_bound, upper_bound),
+        sanitize_bounded(value.g, lower_bound, upper_bound),
+        sanitize_bounded(value.b, lower_bound, upper_bound)
+    );
+}
+
 vec3 sanitize_absolute_rgb(vec3 rgb) {
-    float safe_reference_white = reference_white > 0.0
-        ? min(reference_white, pw)
-        : 0.0;
+    float safe_reference_white = sanitize_bounded(
+        reference_white,
+        0.0,
+        pw
+    );
     vec3 absolute_rgb = rgb * safe_reference_white;
-    return vec3(
-        absolute_rgb.r > 0.0 ? min(absolute_rgb.r, pw) : 0.0,
-        absolute_rgb.g > 0.0 ? min(absolute_rgb.g, pw) : 0.0,
-        absolute_rgb.b > 0.0 ? min(absolute_rgb.b, pw) : 0.0
-    );
-}
-
-vec3 sanitize_unit_coordinates(vec3 coordinates) {
-    return vec3(
-        coordinates.x > 0.0 ? min(coordinates.x, 1.0) : 0.0,
-        coordinates.y > 0.0 ? min(coordinates.y, 1.0) : 0.0,
-        coordinates.z > 0.0 ? min(coordinates.z, 1.0) : 0.0
-    );
-}
-
-float sanitize_unit_coordinate(float coordinate) {
-    return coordinate > 0.0 ? min(coordinate, 1.0) : 0.0;
+    return sanitize_bounded(absolute_rgb, 0.0, pw);
 }
 
 vec3 fetch_atlas_raw(ivec2 position) {
@@ -3214,7 +3232,7 @@ vec3 sample_lut_tetrahedral(vec3 lut_coordinates, int lut) {
             REVERSE_CHROMA_LUT_LAST,
             REVERSE_CHROMA_LUT_LAST
         );
-    vec3 position = sanitize_unit_coordinates(lut_coordinates) *
+    vec3 position = sanitize_bounded(lut_coordinates, 0.0, 1.0) *
                     vec3(last_texel);
     ivec3 base_texel = ivec3(floor(position));
     vec3 fraction = fract(position);
@@ -3284,7 +3302,7 @@ vec3 LAB_to_RGB(vec3 lab) {
 }
 
 float curve(float x) {
-    float position = sanitize_unit_coordinate(x) *
+    float position = sanitize_bounded(x, 0.0, 1.0) *
                      float(CURVE_SIZE - 1);
     int lower_index = int(floor(position));
     int upper_index = min(lower_index + 1, CURVE_SIZE - 1);
