@@ -254,13 +254,17 @@ float RGB_to_Y(vec3 rgb) {
 
 float metering_intensity(vec3 rgb) {
     float y = RGB_to_Y(rgb);
-    float y_abs = clamp(y * reference_white, 0.0, pw);
+    // The ordered comparison rejects NaN as well as non-positive values
+    // before the fractional PQ power can turn -0.0 into NaN.
+    float y_abs = y > 0.0 ? min(y * reference_white, pw) : 0.0;
     return pq_eotf_inv(y_abs);
 }
 
 float metering_max_rgb(vec3 rgb) {
     float maximum = max(max(rgb.r, rgb.g), rgb.b);
-    float maximum_abs = clamp(maximum * reference_white, 0.0, pw);
+    float maximum_abs = maximum > 0.0
+        ? min(maximum * reference_white, pw)
+        : 0.0;
     return pq_eotf_inv(maximum_abs);
 }
 
@@ -814,13 +818,11 @@ void accumulate_workgroup_metering(vec4 intensities, vec4 maxima) {
     atomicAdd(shistogram[to_histogram_bin(intensities.y)], 1u);
     atomicAdd(shistogram[to_histogram_bin(intensities.z)], 1u);
     atomicAdd(shistogram[to_histogram_bin(intensities.w)], 1u);
-    float maximum = clamp(
-        max(max(maxima.x, maxima.y), max(maxima.z, maxima.w)),
-        0.0,
-        1.0
-    );
-    // Positive IEEE-754 floats have the same ordering as their uint bit
-    // patterns, so atomicMax retains full float precision across workgroups.
+    float maximum = max(max(maxima.x, maxima.y), max(maxima.z, maxima.w));
+    // Keep NaN and negative zero out of the integer ordering: their patterns
+    // sort above every finite value in [0, 1]. Non-negative finite floats have
+    // the same ordering as their uint bit patterns, retaining full precision.
+    maximum = maximum > 0.0 ? min(maximum, 1.0) : 0.0;
     atomicMax(
         smax_rgb,
         floatBitsToUint(maximum)
