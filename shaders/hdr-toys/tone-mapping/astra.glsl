@@ -2134,6 +2134,11 @@ float stabilize_auto_exposure(float target, bool automatic) {
     return smoothed_ev;
 }
 
+void record_curve_temporal_pts() {
+    curve_temporal_pts = floatBitsToUint(PTS);
+    curve_temporal_valid = 1u;
+}
+
 void prepare_curve_temporal() {
     curve_temporal_alpha = 1.0;
     curve_temporal_reset = 1u;
@@ -2145,14 +2150,12 @@ void prepare_curve_temporal() {
     }
 
     if (temporal_stable_duration <= 0.0) {
-        curve_temporal_pts = floatBitsToUint(PTS);
-        curve_temporal_valid = 1u;
+        record_curve_temporal_pts();
         return;
     }
 
     if (curve_temporal_valid == 0u) {
-        curve_temporal_pts = floatBitsToUint(PTS);
-        curve_temporal_valid = 1u;
+        record_curve_temporal_pts();
         return;
     }
 
@@ -2163,7 +2166,7 @@ void prepare_curve_temporal() {
         return;
     }
 
-    curve_temporal_pts = floatBitsToUint(PTS);
+    record_curve_temporal_pts();
     if (delta_time < 0.0 || delta_time > temporal_stable_duration)
         return;
 
