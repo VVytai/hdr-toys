@@ -3434,6 +3434,14 @@ const uint PREVIEW_HISTOGRAM_SIZE = 64u;
 const float PREVIEW_HISTOGRAM_BIN_WIDTH = 4.0;
 const float PREVIEW_HISTOGRAM_EXTENT = 256.0;
 const uint PREVIEW_VECTORSCOPE_SIZE = 96u;
+// The density reference is the fixed 128-bin display scale from the
+// historical calibration (the preview grid was 128 bins until it was
+// retuned to 96). Normalizing by (grid / 128)^2 keeps the trace
+// resolution-invariant, so the grid size can be retuned without dimming
+// or brightening the trace. Deriving the reference from the current grid
+// size would cancel the grid out of the ratio and silently defeat that
+// invariance.
+const float PREVIEW_VECTORSCOPE_DENSITY_REFERENCE_SIZE = 128.0;
 const float PREVIEW_VECTORSCOPE_EXTENT = 256.0;
 const float PREVIEW_VECTORSCOPE_AB_RANGE = 0.36;
 const float PREVIEW_VECTORSCOPE_COLOR_SCALE = 65535.0;
@@ -3657,7 +3665,18 @@ vec4 draw_vectorscope(vec2 px) {
     uint index = bin.y * PREVIEW_VECTORSCOPE_SIZE + bin.x;
     uint base = index * 4u;
     float count = float(vectorscope_bins[base + 0u]);
-    float density = clamp(log2(1.0 + count) / 8.0, 0.0, 1.0);
+    // The density reference is the calibrated 128-bin display scale from
+    // the last preview grid retune. The (grid / 128)^2 normalization keeps
+    // the rendered density at the historical 128-bin appearance: retuning
+    // the grid changes resolution only, never trace brightness.
+    float resolution_scale = float(PREVIEW_VECTORSCOPE_SIZE) /
+                             PREVIEW_VECTORSCOPE_DENSITY_REFERENCE_SIZE;
+    float normalized_count = count * resolution_scale * resolution_scale;
+    float density = clamp(
+        log2(1.0 + normalized_count) / 8.0,
+        0.0,
+        1.0
+    );
     vec3 color_sum = vec3(
         vectorscope_bins[base + 1u],
         vectorscope_bins[base + 2u],
