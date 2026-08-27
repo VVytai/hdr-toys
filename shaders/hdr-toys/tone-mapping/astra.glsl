@@ -3532,7 +3532,9 @@ void prepare_preview_histogram_bin(uint index) {
     float total = float(PREVIEW_HISTOGRAM_SAMPLE_COUNT);
     vec2 source_interval = preview_histogram_source_interval(index);
     float current_count = preview_histogram_count(source_interval);
-    float reference_count = metered_histogram_valid > 0u
+    bool temporal_reference_valid = temporal_stable_duration > 0.0 &&
+                                    metered_histogram_valid > 0u;
+    float reference_count = temporal_reference_valid
         ? preview_reference_histogram_count(source_interval, total)
         : current_count;
     preview_histogram_current[index] = preview_histogram_height(
