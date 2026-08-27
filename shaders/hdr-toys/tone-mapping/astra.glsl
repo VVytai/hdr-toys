@@ -173,6 +173,7 @@
 //!VAR uint metered_coarse_histogram[64]
 //!VAR float metered_zone_average[144]
 //!VAR float metered_zone_spread[144]
+//!VAR float metered_zone_preview_weight[144]
 //!VAR float metered_histogram_average
 //!VAR float metered_matrix_average
 //!VAR float metered_matrix_blend
@@ -1517,11 +1518,17 @@ void refine_average_with_matrix(uint tid) {
 
     vec2 partial = matrix_zone_partial(tid, histogram_average);
     if (preview_metering > 0u && tid < METERING_ZONE_COUNT) {
-        // prepare_matrix_active_region() has completed every cross-zone spread
-        // read behind its barrier, and this thread has consumed its own spread
-        // above. The preview weight can therefore reuse the slot; the next
-        // frame's matrix pass replaces it before statistics run again.
-        metered_zone_spread[tid] = partial.y;
+        // Keep the spread feeding the preview weight immutable throughout
+        // this pass. A separate preview slot avoids a cross-invocation SSBO
+        // read/write dependency; barrier() alone only orders shared
+        // workgroup state.
+        //
+        // Publishing only while the preview is on cannot expose stale
+        // weights: metered_zone_valid is cleared every frame and set only
+        // by the matrix-zones pass, whose WHEN already includes
+        // preview_metering - the frame the preview toggles on re-runs the
+        // zones pass and republishes fresh weights before any preview read.
+        metered_zone_preview_weight[tid] = partial.y;
     }
 
     reduce_matrix_partials(tid, partial);
@@ -3482,9 +3489,9 @@ vec4 draw_matrix_metering(vec2 position) {
     if (min(edge_distance.x, edge_distance.y) < 1.0)
         return vec4(vec3(0.82), 0.55);
 
-    // In preview mode the statistics pass repurposes the spread slot as the
-    // resolved zone weight after all spread-dependent calculations finish.
-    float zone_weight = metered_zone_spread[index];
+    // The statistics pass publishes the resolved zone weight separately from
+    // the spread used by active-region and reliability calculations.
+    float zone_weight = metered_zone_preview_weight[index];
     if (zone_weight <= 0.0) {
         vec2 oriented_px = clamped_position * oriented_size;
         float hatch = step(
