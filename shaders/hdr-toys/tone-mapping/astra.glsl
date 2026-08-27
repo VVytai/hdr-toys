@@ -3779,13 +3779,18 @@ vec3 draw_skin_tone_reference(vec2 plane, float line_width) {
     return tint;
 }
 
+bool outside_panel_bounds(vec2 position, vec2 lower_bound, vec2 upper_bound) {
+    return any(lessThan(position, lower_bound)) ||
+           any(greaterThan(position, upper_bound));
+}
+
 vec4 draw_histogram(vec2 px) {
     vec2 origin = vec2(MARGIN * SCALE);
     vec2 padding = vec2(PAD * SCALE);
     vec2 panel_min = origin - padding;
     vec2 panel_max = origin + vec2(PREVIEW_HISTOGRAM_EXTENT) + padding;
 
-    if (any(lessThan(px, panel_min)) || any(greaterThan(px, panel_max)))
+    if (outside_panel_bounds(px, panel_min, panel_max))
         return vec4(0.0);
 
     vec2 local = px - origin;
@@ -3840,7 +3845,7 @@ vec4 draw_vectorscope(vec2 px) {
     vec2 panel_min = origin - padding;
     vec2 panel_max = origin + vec2(PREVIEW_VECTORSCOPE_EXTENT) + padding;
 
-    if (any(lessThan(px, panel_min)) || any(greaterThan(px, panel_max)))
+    if (outside_panel_bounds(px, panel_min, panel_max))
         return vec4(0.0);
 
     vec2 local = px - origin;
@@ -4115,7 +4120,7 @@ vec4 draw_metrics_panel(vec2 px) {
         last_origin.y + (CHAR_H + PAD) * SCALE
     );
 
-    if (any(lessThan(px, panel_min)) || any(greaterThan(px, panel_max)))
+    if (outside_panel_bounds(px, panel_min, panel_max))
         return vec4(0.0);
 
     float label_width = 4.0 * (CHAR_W + SPACING);
