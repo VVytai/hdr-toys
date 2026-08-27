@@ -1594,6 +1594,10 @@ uint pts_to_uint(float x) {
     return floatBitsToUint(x);
 }
 
+bool valid_pts(float value) {
+    return !isnan(value) && !isinf(value);
+}
+
 float temporal_alpha(float delta_time, float time_constant) {
     return 1.0 - exp(
         -delta_time / max(time_constant, TEMPORAL_MIN_TIME_CONSTANT)
@@ -1614,6 +1618,14 @@ void temporal_initialize_scalar_state() {
     temporal_clear_scene_candidate();
     metered_histogram_valid = 1u;
     metered_temporal_pts = pts_to_uint(PTS);
+    metered_scene_adaptation_end_pts = 0u;
+    metered_scene_fast_response = 0u;
+}
+
+void temporal_invalidate_state() {
+    temporal_clear_scene_candidate();
+    metered_histogram_valid = 0u;
+    metered_temporal_pts = 0u;
     metered_scene_adaptation_end_pts = 0u;
     metered_scene_fast_response = 0u;
 }
@@ -1725,6 +1737,16 @@ void temporal_prepare_frame() {
     temporal_frame_operation = TEMPORAL_FRAME_SKIP;
     temporal_reference_operation = TEMPORAL_REFERENCE_KEEP;
 
+    if (!valid_pts(PTS)) {
+        // A discontinuous frame may carry unrelated content. Invalidate and
+        // skip histogram learning entirely (frame operation stays SKIP):
+        // initializing the reference from it could seed a false scene-cut
+        // candidate. The next finite-PTS frame re-initializes from fresh
+        // data via temporal_initialize_frame.
+        temporal_invalidate_state();
+        return;
+    }
+
     if (metered_histogram_valid == 0u) {
         temporal_initialize_scalar_state();
         temporal_frame_operation = TEMPORAL_FRAME_INITIALIZE;
@@ -1831,6 +1853,10 @@ const float OUTPUT_TEMPORAL_SCENE_ADAPTATION_SCALE = 0.50;
 const float CURVE_TEMPORAL_TIME_SCALE = 0.35;
 const float CURVE_TEMPORAL_MIN_TIME_CONSTANT = 1.0 / 240.0;
 const float CURVE_TEMPORAL_PTS_EPSILON = 1e-6;
+
+bool valid_pts(float value) {
+    return !isnan(value) && !isinf(value);
+}
 
 const float m1 = 2610.0 / 4096.0 / 4.0;
 const float m2 = 2523.0 / 4096.0 * 128.0;
@@ -2039,6 +2065,13 @@ float output_temporal_time_scale(float normal_scale) {
 }
 
 float stabilize_auto_exposure(float target, bool automatic) {
+    if (!valid_pts(PTS)) {
+        // Only the validity flag matters here: every smoothed_ev read is
+        // gated on it, and the next finite frame re-baselines the state.
+        smoothed_ev_valid = 0u;
+        return target;
+    }
+
     if (!automatic || temporal_stable_duration <= 0.0) {
         smoothed_ev = target;
         smoothed_ev_pts = floatBitsToUint(PTS);
@@ -2080,6 +2113,12 @@ float stabilize_auto_exposure(float target, bool automatic) {
 void prepare_curve_temporal() {
     curve_temporal_alpha = 1.0;
     curve_temporal_reset = 1u;
+
+    if (!valid_pts(PTS)) {
+        curve_temporal_pts = 0u;
+        curve_temporal_valid = 0u;
+        return;
+    }
 
     if (temporal_stable_duration <= 0.0) {
         curve_temporal_pts = floatBitsToUint(PTS);
