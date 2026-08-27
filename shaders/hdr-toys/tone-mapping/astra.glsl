@@ -233,7 +233,7 @@
 //!BIND HOOKED
 //!SAVE METERING
 //!COMPONENTS 2
-//!WHEN enable_metering 0 > max_pq_y 0 = * scene_max_r 0 = * scene_max_g 0 = * scene_max_b 0 = * preview_metering +
+//!WHEN enable_metering 0 > max_pq_y 0 > ! * scene_max_r 0 > scene_max_g 0 > + scene_max_b 0 > + ! * preview_metering +
 //!DESC metering (intensity map)
 
 const float m1 = 2610.0 / 4096.0 / 4.0;
@@ -866,7 +866,7 @@ void hook() {
 //!WIDTH 256
 //!HEIGHT 144
 //!COMPUTE 16 16 16 16
-//!WHEN auto_exposure_anchor 0 > enable_metering 1 > * avg_pq_y 0 = * scene_avg 0 = * preview_metering enable_metering 1 > * +
+//!WHEN auto_exposure_anchor 0 > enable_metering 1 > * avg_pq_y 0 > ! * scene_avg 0 > ! * preview_metering enable_metering 1 > * +
 //!DESC metering (matrix zones)
 
 // A 256x144 analysis grid maps exactly to 16x9 workgroups. Each workgroup
@@ -1877,6 +1877,27 @@ float RGB_to_Y(vec3 rgb) {
     return dot(rgb, coefficients);
 }
 
+float sanitize_metadata_pq(float value) {
+    return value > 0.0 ? min(value, 1.0) : 0.0;
+}
+
+float sanitize_metadata_nits(float value) {
+    return value > 0.0 ? min(value, pw) : 0.0;
+}
+
+vec3 sanitize_metadata_nits(vec3 value) {
+    return vec3(
+        sanitize_metadata_nits(value.r),
+        sanitize_metadata_nits(value.g),
+        sanitize_metadata_nits(value.b)
+    );
+}
+
+float metadata_nits_to_pq(float value) {
+    float luminance = sanitize_metadata_nits(value);
+    return luminance > 0.0 ? pq_eotf_inv(luminance) : 0.0;
+}
+
 float to_float(uint x) {
     return float(x) / 4095.0;
 }
@@ -1892,8 +1913,16 @@ struct MeteringMetrics {
 
 MeteringMetrics resolve_metering_metrics() {
     MeteringMetrics metrics;
-    vec3 scene_max_rgb = vec3(scene_max_r, scene_max_g, scene_max_b);
-    bool has_pq_peak = max_pq_y > 0.0;
+    float pq_peak = sanitize_metadata_pq(max_pq_y);
+    float pq_average = sanitize_metadata_pq(avg_pq_y);
+    vec3 scene_max_rgb = sanitize_metadata_nits(
+        vec3(scene_max_r, scene_max_g, scene_max_b)
+    );
+    float scene_average = sanitize_metadata_nits(scene_avg);
+    float static_max_cll = sanitize_metadata_nits(max_cll);
+    float static_max_luma = sanitize_metadata_nits(max_luma);
+    float static_min_luma = sanitize_metadata_nits(min_luma);
+    bool has_pq_peak = pq_peak > 0.0;
     bool has_scene_peak = any(greaterThan(scene_max_rgb, vec3(0.0)));
 
     // This must match the peak-metadata conditions on the intensity-map pass.
@@ -1902,20 +1931,20 @@ MeteringMetrics resolve_metering_metrics() {
                         !has_pq_peak && !has_scene_peak;
 
     if (has_pq_peak)
-        metrics.maximum = max_pq_y;
+        metrics.maximum = pq_peak;
     else if (has_scene_peak)
-        metrics.maximum = pq_eotf_inv(RGB_to_Y(scene_max_rgb));
+        metrics.maximum = metadata_nits_to_pq(RGB_to_Y(scene_max_rgb));
     else if (use_measured)
         metrics.maximum = to_float(metered_max_i);
-    else if (max_cll > 0.0)
-        metrics.maximum = pq_eotf_inv(max_cll);
-    else if (max_luma > 0.0)
-        metrics.maximum = pq_eotf_inv(max_luma);
+    else if (static_max_cll > 0.0)
+        metrics.maximum = metadata_nits_to_pq(static_max_cll);
+    else if (static_max_luma > 0.0)
+        metrics.maximum = metadata_nits_to_pq(static_max_luma);
     else
         metrics.maximum = pq_eotf_inv(1000.0);
 
     if (has_scene_peak)
-        metrics.max_rgb = pq_eotf_inv(
+        metrics.max_rgb = metadata_nits_to_pq(
             max(max(scene_max_rgb.r, scene_max_rgb.g), scene_max_rgb.b)
         );
     else if (use_measured)
@@ -1925,15 +1954,15 @@ MeteringMetrics resolve_metering_metrics() {
 
     if (use_measured)
         metrics.minimum = to_float(metered_min_i);
-    else if (min_luma > 0.0)
-        metrics.minimum = pq_eotf_inv(min_luma);
+    else if (static_min_luma > 0.0)
+        metrics.minimum = metadata_nits_to_pq(static_min_luma);
     else
         metrics.minimum = 0.0;
 
-    if (avg_pq_y > 0.0)
-        metrics.average = avg_pq_y;
-    else if (scene_avg > 0.0)
-        metrics.average = pq_eotf_inv(scene_avg);
+    if (pq_average > 0.0)
+        metrics.average = pq_average;
+    else if (scene_average > 0.0)
+        metrics.average = metadata_nits_to_pq(scene_average);
     else if (use_measured && enable_metering > 1)
         metrics.average = to_float(metered_avg_i);
     // MaxFALL is the static-metadata fallback for average luminance, but using
@@ -1942,6 +1971,18 @@ MeteringMetrics resolve_metering_metrics() {
     //     metrics.average = pq_eotf_inv(max_fall);
     else
         metrics.average = 0.0;
+
+    // Enforce the physical ordering assumed by the exposure-limit logarithms.
+    // This is a no-op for valid metadata and measured statistics.
+    metrics.max_rgb = max(metrics.max_rgb, metrics.maximum);
+    metrics.minimum = min(metrics.minimum, metrics.maximum);
+    if (metrics.average > 0.0) {
+        metrics.average = clamp(
+            metrics.average,
+            metrics.minimum,
+            metrics.maximum
+        );
+    }
 
     return metrics;
 }
