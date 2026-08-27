@@ -2565,13 +2565,23 @@ float f(
         return f_linear(x, slope, intercept);
     }
 
+    // The branch conditions guard the segment denominators: the toe is
+    // reached only with y1 > y0 (otherwise the flat clip above returns y0)
+    // and slope_toe < slope, which forces k = dy - slope*dx < 0 and a
+    // positive Suzuki denominator over the whole [x0, x1] span; the shoulder
+    // is reached only with y2 < y3 and slope_shoulder < slope, which forces
+    // normalized_slope > 1, curvature > 0, and a denominator >= 1. A
+    // degenerate dx == 0 (shadow_weight 1 with ib == ob, or highlight_weight
+    // 1 with iw == ow) is deflected by f_slope's zero-denominator guard
+    // returning exactly 1.0, which sends the branch to the linear fallback -
+    // keep that guard value literal and the strict '<' comparisons above, or
+    // a NaN path reopens here.
     if (x < x1) {
+        if (y1 <= y0)
+            return y0;
+
         float slope_toe = f_slope(x0, y0, x1, y1);
-        // y1 <= y0 is equivalent to slope_toe <= 0 when x1 > x0, but it
-        // also covers x1 == x0 (sw = 1 with lifted blacks), where
-        // f_slope's degenerate-dx guard returns 1.0 and a clamped
-        // junction would otherwise feed the toe a zero-length segment.
-        if (slope_toe >= slope || y1 <= y0) {
+        if (slope_toe >= slope) {
             return f_linear(x, slope, intercept);
         }
 
@@ -2579,13 +2589,11 @@ float f(
     }
 
     if (x > x2) {
+        if (y2 >= y3)
+            return y3;
+
         float slope_shoulder = f_slope(x2, y2, x3, y3);
-        // y2 >= y3 is equivalent to slope_shoulder <= 0 when x3 > x2,
-        // but it also covers x2 == x3 (hw = 1 with the content peak at
-        // or below the white point), where f_slope's degenerate-dx
-        // guard returns 1.0 and a clamped junction would otherwise
-        // feed the shoulder a zero-length segment.
-        if (slope_shoulder >= slope || y2 >= y3) {
+        if (slope_shoulder >= slope) {
             return f_linear(x, slope, intercept);
         }
 
