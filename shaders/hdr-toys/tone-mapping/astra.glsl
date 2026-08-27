@@ -1640,6 +1640,11 @@ void temporal_invalidate_state() {
     metered_scene_fast_response = 0u;
 }
 
+void temporal_initialize_frame() {
+    temporal_initialize_scalar_state();
+    temporal_frame_operation = TEMPORAL_FRAME_INITIALIZE;
+}
+
 vec2 temporal_measure_distance(uint index, float current) {
     vec2 distance = vec2(
         abs(current - metered_reference_histogram[index]),
@@ -1758,8 +1763,7 @@ void temporal_prepare_frame() {
     }
 
     if (metered_histogram_valid == 0u) {
-        temporal_initialize_scalar_state();
-        temporal_frame_operation = TEMPORAL_FRAME_INITIALIZE;
+        temporal_initialize_frame();
         return;
     }
 
@@ -1771,8 +1775,7 @@ void temporal_prepare_frame() {
         return;
 
     if (delta_time < 0.0 || delta_time > temporal_stable_duration) {
-        temporal_initialize_scalar_state();
-        temporal_frame_operation = TEMPORAL_FRAME_INITIALIZE;
+        temporal_initialize_frame();
         return;
     }
 
