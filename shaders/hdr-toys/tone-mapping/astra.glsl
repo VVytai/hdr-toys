@@ -2074,13 +2074,21 @@ void prepare_curve_temporal() {
     curve_temporal_reset = 0u;
 }
 
+float apply_exposure_to_pq(float value, float scale) {
+    float luminance = pq_eotf(value) * scale;
+    // Match the per-pixel LUT-coordinate path. Values above the PQ mastering
+    // range cannot reach tone mapping and would cross the J transform's pole.
+    luminance = luminance > 0.0 ? min(luminance, pw) : 0.0;
+    return pq_eotf_inv(luminance);
+}
+
 void apply_exposure_to_range(inout MeteringMetrics metrics, float scale) {
     if (scale == 1.0)
         return;
 
-    metrics.maximum = pq_eotf_inv(pq_eotf(metrics.maximum) * scale);
-    metrics.max_rgb = pq_eotf_inv(pq_eotf(metrics.max_rgb) * scale);
-    metrics.minimum = pq_eotf_inv(pq_eotf(metrics.minimum) * scale);
+    metrics.maximum = apply_exposure_to_pq(metrics.maximum, scale);
+    metrics.max_rgb = apply_exposure_to_pq(metrics.max_rgb, scale);
+    metrics.minimum = apply_exposure_to_pq(metrics.minimum, scale);
 }
 
 bool automatic_exposure_enabled(MeteringMetrics metrics) {
