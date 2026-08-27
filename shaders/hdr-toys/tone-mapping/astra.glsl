@@ -1517,10 +1517,10 @@ void refine_average_with_matrix(uint tid) {
 
     vec2 partial = matrix_zone_partial(tid, histogram_average);
     if (preview_metering > 0u && tid < METERING_ZONE_COUNT) {
-        // matrix_zone_partial() has already consumed every zone's spread, so
-        // the preview weight can safely reuse its storage without another
-        // buffer, binding, or synchronization point. The next frame's matrix
-        // pass writes fresh spread values before reduction reads them again.
+        // prepare_matrix_active_region() has completed every cross-zone spread
+        // read behind its barrier, and this thread has consumed its own spread
+        // above. The preview weight can therefore reuse the slot; the next
+        // frame's matrix pass replaces it before statistics run again.
         metered_zone_spread[tid] = partial.y;
     }
 
