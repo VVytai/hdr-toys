@@ -2521,6 +2521,7 @@ float hke_fh_high(float h, float k1, float k2, float k3, float k4) {
 
 // CIECAM16: 1.5940, 45.0, 2.6518
 // CIELAB: 0.1644, 45.0, 0.1024
+// [Lightness modifications of the CIECAM16 and CIELAB based on the Helmholtz-Kohlrausch effect](https://doi.org/10.1364/OE.534073)
 float hke_fh_liao(float h, float k3, float k4, float k5) {
     h = mod(mod(degrees(h), 360.0) + 360.0, 360.0);
     return k3 * abs(log(((h + k4) / (90.0 + k4)))) + k5;
@@ -2531,9 +2532,8 @@ float hke_fh(float h) {
     return result * hk_effect_compensate_scaling;
 }
 
-// Source of the Helmholtz-Kohlrausch correction constants used by the
-// hke_* functions below.
-// [Lightness modifications of the CIECAM16 and CIELAB based on the Helmholtz-Kohlrausch effect](https://doi.org/10.1364/OE.534073)
+// The H-K lightness index of the form J + C * f(h).
+// [Predicting the lightness of chromatic object colors using CIELAB](https://doi.org/10.1002/col.5080160608)
 float J_to_Jhk(vec3 JCh) {
     float J = JCh.x;
     float C = JCh.y;
