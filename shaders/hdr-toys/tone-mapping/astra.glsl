@@ -2122,8 +2122,16 @@ float stabilize_auto_exposure(float target, bool automatic) {
     }
 
     if (!finite_float(PTS)) {
-        // Only the validity flag matters here: every smoothed_ev read is
-        // gated on it, and the next finite frame re-baselines the state.
+        // Only the valid flag matters here: every smoothed_ev read is gated
+        // on smoothed_ev_valid, so the value and pts writes are dead. The
+        // next finite frame re-baselines via reset_auto_exposure.
+        //
+        // Recovery contract: an unknown-PTS frame (seek/preroll redraw)
+        // renders the raw target directly for two frames - this one, then
+        // one more through reset_auto_exposure - before the ramp resumes.
+        // A scene change coinciding with such a frame therefore snaps
+        // instead of ramping. This replaces the pre-diff behavior of
+        // permanently poisoning smoothed_ev with NaN.
         smoothed_ev_valid = 0u;
         return target;
     }
