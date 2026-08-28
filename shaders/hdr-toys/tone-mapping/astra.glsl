@@ -2232,6 +2232,9 @@ float apply_exposure_to_pq(float value, float scale) {
     float luminance = pq_eotf(value) * scale;
     // Match the per-pixel LUT-coordinate path. Values above the PQ mastering
     // range cannot reach tone mapping and would cross the J transform's pole.
+    // Deliberately caps the curve white point at 10000 nits even under
+    // positive exposure: content at the mastering peak maps to full output
+    // white instead of rolling off below an extrapolated white point.
     luminance = sanitize_bounded(luminance, 0.0, pw);
     return pq_eotf_inv(luminance);
 }
