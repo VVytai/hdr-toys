@@ -245,7 +245,7 @@
 // discarded or derived from a constant map.
 //
 // WHEN conditions must reference only parameters or the built-in OUTPUT
-// size: libplacebo evaluates WHEN before resolving BIND, so a texture
+// size variable: libplacebo evaluates WHEN before resolving BIND, so a texture
 // reference (e.g. METERING.w) errors out when the producing pass is gated
 // off (libplacebo issue 376). Width/height expressions are safe because
 // they are evaluated only after the binds resolve.
@@ -1214,9 +1214,11 @@ uint pq_to_uint(float value) {
     return uint(clamp(value, 0.0, 1.0) * 4095.0 + 0.5);
 }
 
-// Detect only near-zero, internally uniform zones. Requiring edge occupancy
-// below makes the crop follow presentation bars instead of dark objects inside
-// the picture; the whole-frame average guard avoids classifying a dark shot.
+// Detect only near-zero, internally uniform zones. Requiring the black
+// fraction to reach the occupancy threshold before a column counts as
+// border makes the crop follow presentation bars instead of dark objects
+// inside the picture; the whole-frame average guard avoids classifying a
+// dark shot.
 bool matrix_zone_looks_like_border(uint index) {
     float black_limit = min(
         METERING_BORDER_BLACK_MAX,
@@ -1961,7 +1963,7 @@ float sanitize_metadata_pq(float value) {
 float sanitize_metadata_nits(float value) {
     // Deliberately caps metadata at the PQ mastering range. Values above
     // 10000 nits cannot reach tone mapping, and leaving them extrapolated
-    // would diverge from the per-pixel LUT path which clamps at pw.
+    // would diverge from the per-pixel LUT path, which is clamped at pw.
     return sanitize_bounded(value, 0.0, pw);
 }
 
@@ -2056,15 +2058,16 @@ MeteringMetrics resolve_metering_metrics() {
         metrics.average = 0.0;
 
     // Enforce the physical ordering assumed by the exposure-limit logarithms.
-    // The two ordering lines are no-ops for consistent inputs. The average
-    // clamp is not: it rewrites the metadata average into the measured band
-    // in mixed metadata+measured configurations, and pins the matrix-refined
-    // measured average inside the robust [minimum, maximum] band in pure
-    // measured configurations.
+    // The max/min ordering lines are no-ops for consistent inputs. The
+    // average clamp is not: it rewrites the metadata average into the
+    // measured band in mixed metadata+measured configurations, and pins the
+    // matrix-refined measured average inside the robust [minimum, maximum]
+    // band in pure measured configurations.
     //
     // This is deliberate: without it, a mixed-path average above the
     // measured maximum would invert the negative exposure limit
-    // (ev_limit_neg < 0) and collapse auto exposure onto the boundary.
+    // (ev_limit_neg < 0) and force auto exposure to sit at the inverted
+    // bound.
     metrics.max_rgb = max(metrics.max_rgb, metrics.maximum);
     metrics.minimum = min(metrics.minimum, metrics.maximum);
     if (metrics.average > 0.0) {
@@ -2550,7 +2553,7 @@ float Jhk_to_J(vec3 JCh) {
 
 // https://www.itu.int/rec/R-REC-BT.2124
 // ΔE_ITP_JND = 1 / 720
-// 0.0001 of Cz is much smaller than it
+// 0.0001 of Cz is much smaller than a JND
 const float epsilon = 0.0001;
 
 vec3 Lab_to_LCh(vec3 Lab) {
@@ -2936,7 +2939,7 @@ bool finite_float(float value) {
 float stabilize_curve_value(int index, float target) {
     // curve_temporal_reset stays armed until a frame has hard-written the
     // whole row, so reset > 0 implies the SSBO is either uninitialized or
-    // being re-baselined: never read it for history in that case.
+    // being re-baselined: never read the curve history in that case.
     bool history_valid = curve_temporal_reset == 0u &&
                          finite_float(smoothed_curve[index]);
     // Hold the last valid value on a non-finite target. This is deliberate:
@@ -4108,7 +4111,7 @@ uint number_fixed_value(float value) {
     // tautology: it renders NaN as 0.00 and keeps uint(NaN), whose value is
     // undefined, out of the conversion.
     //
-    // Current callers only pass finite values (EV is clamped to +-64, PQ
+    // Current callers only pass finite values (EV is clamped to ±64, PQ
     // rows to [0, 1]), kept as defense.
     float scaled = magnitude >= 0.0
         ? min(magnitude * 100.0 + 0.5, float(NUMBER_FIXED_MAX))
