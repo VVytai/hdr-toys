@@ -265,6 +265,12 @@ float RGB_to_Y(vec3 rgb) {
     return dot(rgb, coefficients);
 }
 
+// Ordered-comparison sanitizer: NaN and values at or below the lower bound
+// map to the lower bound, values above the upper bound map to it. Deliberate
+// ternary, not clamp: GLSL clamp/min/max do not specify NaN propagation, and
+// callers rely on the ordered comparison rejecting NaN before pow().
+// Redefined per pass because each mpv shader pass is a separate compilation
+// unit.
 float sanitize_bounded(float value, float lower_bound, float upper_bound) {
     return value > lower_bound ? min(value, upper_bound) : lower_bound;
 }
