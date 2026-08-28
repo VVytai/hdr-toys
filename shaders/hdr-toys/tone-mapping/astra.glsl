@@ -912,6 +912,7 @@ const uint MATRIX_ZONE_ROWS = 9u;
 const uint MATRIX_ZONE_COUNT = MATRIX_ZONE_COLUMNS * MATRIX_ZONE_ROWS;
 const uint MATRIX_ZONE_SAMPLE_COUNT = 16u * 16u;
 const uint MATRIX_ZONE_HISTOGRAM_SIZE = 64u;
+
 // Pack a 15-bit PQ sum and a 9-bit sample count into each histogram uint.
 // A bin can contain all 256 samples without a count carry, while the maximum
 // packed sum remains below uint overflow. This preserves sub-bin precision
@@ -1084,6 +1085,7 @@ const uint METERING_COARSE_HISTOGRAM_SIZE = 64u;
 const uint METERING_BLOCKS_PER_COARSE_BIN = 4u;
 const uint METERING_SAMPLE_COUNT = 512u * 288u;
 const float METERING_BLACK_PERCENTILE = 0.005;
+
 // A robust white point constrains automatic exposure without allowing one
 // unstable highlight sample to move the whole frame. The maximum RGB channel
 // is measured separately to define the tone-curve endpoint.
