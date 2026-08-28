@@ -2461,7 +2461,7 @@ vec3 Iab_to_LMS(vec3 Iab) {
 }
 
 // https://doi.org/10.2352/ISSN.2169-2629.2017.25.264
-// Optimized matrices for Jzazbz about LMS to I conversion.
+// Optimized matrices for the Jzazbz LMS-to-I conversion.
 // https://doi.org/10.1364/OE.413659
 // ZCAM defines Iz = G' - ε, where ε = 3.7035226210190005e-11.
 // However, it appears we do not need it.
@@ -3852,6 +3852,7 @@ vec4 draw_matrix_metering(vec2 position) {
 // is C / Cmax, where Cmax is the largest Jzazbz chroma of the Rec. 2020
 // primaries at the 1000-nit HLG nominal peak. The report's H-K-independent
 // a/b coordinates match this vectorscope even when J compensation is active.
+// https://www.itu.int/pub/R-REP-BT.2525
 const vec2 BT2525_SKIN_HUE_RANGE = vec2(35.4, 70.6);
 const vec2 BT2525_SKIN_SATURATION_RANGE = vec2(0.085, 0.281);
 const float BT2525_HLG_MAX_PRIMARY_CHROMA = 0.34074623;
