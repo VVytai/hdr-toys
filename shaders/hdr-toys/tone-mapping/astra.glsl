@@ -4230,12 +4230,11 @@ vec4 draw_metrics_panel(vec2 px) {
     float metrics_x = metrics_top - PAD * SCALE < chart_stack_bottom
         ? MARGIN * SCALE + PREVIEW_VECTORSCOPE_EXTENT + PREVIEW_PANEL_GAP
         : MARGIN * SCALE;
-    vec2 last_origin = vec2(metrics_x, metrics_bottom);
     vec2 o0 = vec2(metrics_x, metrics_top);
     vec2 panel_min = o0 - vec2(PAD * SCALE);
     vec2 panel_max = vec2(
         o0.x + (MAX_ROW_WIDTH + PAD) * SCALE,
-        last_origin.y + (CHAR_H + PAD) * SCALE
+        metrics_bottom + (CHAR_H + PAD) * SCALE
     );
 
     if (outside_panel_bounds(px, panel_min, panel_max))
