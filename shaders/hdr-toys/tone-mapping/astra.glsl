@@ -272,11 +272,12 @@ float RGB_to_Y(vec3 rgb) {
 }
 
 // Ordered-comparison sanitizer: NaN and values at or below the lower bound
-// map to the lower bound, values above the upper bound map to it. Deliberate
-// ternary, not clamp: GLSL clamp/min/max do not specify NaN propagation, and
-// callers rely on the ordered comparison rejecting NaN before pow().
-// Redefined per pass because each mpv shader pass is a separate compilation
-// unit.
+// map to the lower bound, values above the upper bound map to it.
+//
+// Deliberately a ternary, not clamp: GLSL clamp/min/max do not specify NaN
+// propagation, and callers rely on the ordered comparison rejecting NaN
+// before pow(). Redefined per pass because each shader pass is a separate
+// compilation unit.
 float sanitize_bounded(float value, float lower_bound, float upper_bound) {
     return value > lower_bound ? min(value, upper_bound) : lower_bound;
 }
@@ -2054,9 +2055,11 @@ MeteringMetrics resolve_metering_metrics() {
     // clamp is not: it rewrites the metadata average into the measured band
     // in mixed metadata+measured configurations, and pins the matrix-refined
     // measured average inside the robust [minimum, maximum] band in pure
-    // measured configurations. This is deliberate: without it, a mixed-path
-    // average above the measured maximum would invert the negative exposure
-    // limit (ev_limit_neg < 0) and collapse auto exposure onto the boundary.
+    // measured configurations.
+    //
+    // This is deliberate: without it, a mixed-path average above the
+    // measured maximum would invert the negative exposure limit
+    // (ev_limit_neg < 0) and collapse auto exposure onto the boundary.
     metrics.max_rgb = max(metrics.max_rgb, metrics.maximum);
     metrics.minimum = min(metrics.minimum, metrics.maximum);
     if (metrics.average > 0.0) {
@@ -2131,6 +2134,7 @@ float reset_auto_exposure(float target) {
 float stabilize_auto_exposure(float target, bool automatic) {
     // Manual exposure is clamped to the declared [-64, 64] range, and a
     // non-finite target snaps to neutral EV instead of poisoning the ramp.
+    //
     // The curve path uses the complementary policy (hold last valid value,
     // see stabilize_curve_value): a broken frame must not re-baseline the
     // whole LUT, while exposure re-baselines at neutral. In practice the
@@ -2760,9 +2764,11 @@ float f(
     }
 
     // The clamped pivots keep both junctions on the midgray line, so the
-    // middle-segment slope is exactly target_slope. The f_slope recompute
-    // could only differ in the collapsed both-junctions-at-midgray case,
-    // where its zero-denominator guard wrongly returns 1.0.
+    // middle-segment slope is exactly target_slope.
+    //
+    // The f_slope recompute could only differ in the collapsed
+    // both-junctions-at-midgray case, where its zero-denominator guard
+    // wrongly returns 1.0.
     float slope = target_slope;
     float intercept = f_intercept(slope, x1, y1);
 
@@ -3071,8 +3077,10 @@ vec3 sanitize_vectorscope_rgb(
     // luminance above the PQ mastering range, only reachable with non-PQ
     // transfer formats) is clamped proportionally so the vectorscope hue
     // is preserved; a per-channel clamp collapses the largest component
-    // and shifts the trace hue. With a degenerate reference_white the
-    // positive form still reflects the content peak.
+    // and shifts the trace hue.
+    //
+    // With a degenerate reference_white the positive form still reflects
+    // the content peak.
     positive_rgb = sanitize_bounded(rgb, 0.0, pw);
     float peak = max(max(positive_rgb.r, positive_rgb.g), positive_rgb.b);
     float limit = pw / max(safe_reference_white, 1e-6);
@@ -4093,8 +4101,10 @@ uint number_fixed_value(float value) {
     float magnitude = abs(value);
     // abs(NaN) >= 0.0 is false, so the ternary is a NaN guard, not a
     // tautology: it renders NaN as 0.00 and keeps uint(NaN), whose value is
-    // undefined, out of the conversion. Current callers only pass finite
-    // values (EV is clamped to +-64, PQ rows to [0, 1]), kept as defense.
+    // undefined, out of the conversion.
+    //
+    // Current callers only pass finite values (EV is clamped to +-64, PQ
+    // rows to [0, 1]), kept as defense.
     float scaled = magnitude >= 0.0
         ? min(magnitude * 100.0 + 0.5, float(NUMBER_FIXED_MAX))
         : 0.0;
