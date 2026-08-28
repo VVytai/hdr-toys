@@ -2016,7 +2016,13 @@ MeteringMetrics resolve_metering_metrics() {
         metrics.average = 0.0;
 
     // Enforce the physical ordering assumed by the exposure-limit logarithms.
-    // This is a no-op for valid metadata and measured statistics.
+    // The two ordering lines are no-ops for consistent inputs. The average
+    // clamp is not: it rewrites the metadata average into the measured band
+    // in mixed metadata+measured configurations, and pins the matrix-refined
+    // measured average inside the robust [minimum, maximum] band in pure
+    // measured configurations. This is deliberate: without it, a mixed-path
+    // average above the measured maximum would invert the negative exposure
+    // limit (ev_limit_neg < 0) and collapse auto exposure onto the boundary.
     metrics.max_rgb = max(metrics.max_rgb, metrics.maximum);
     metrics.minimum = min(metrics.minimum, metrics.maximum);
     if (metrics.average > 0.0) {
