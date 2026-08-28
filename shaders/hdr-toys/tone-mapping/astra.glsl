@@ -1925,6 +1925,9 @@ float sanitize_metadata_pq(float value) {
 }
 
 float sanitize_metadata_nits(float value) {
+    // Deliberately caps metadata at the PQ mastering range. Values above
+    // 10000 nits cannot reach tone mapping, and leaving them extrapolated
+    // would diverge from the per-pixel LUT path which clamps at pw.
     return sanitize_bounded(value, 0.0, pw);
 }
 
