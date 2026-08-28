@@ -434,9 +434,7 @@ vec4 hook() { return vec4(sample_metering_downscaled(), 0.0, 1.0); }
 //!WHEN spatial_stable_iterations 0 >
 //!DESC metering (spatial stabilization, blur, horizontal)
 
-// Efficient Gaussian blur with linear sampling
-// by Daniel Rákos
-// https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/
+// [Efficient Gaussian blur with linear sampling](https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/)
 
 const vec3 offset = vec3(0.0000000000, 1.3846153846, 3.2307692308);
 const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
@@ -1884,8 +1882,8 @@ void hook() { analyze_metering_temporally(); }
 //!COMPUTE 1 1
 //!DESC metering (metadata)
 
-// For content with dynamic metadata, it will be provided by mpv
-// https://github.com/mpv-player/mpv/pull/15239
+// The dynamic-metadata parameters at the top of the file are provided by mpv
+// [vo_gpu_next: add chroma location to shader parameters](https://github.com/mpv-player/mpv/pull/15239)
 
 // Filter automatic exposure in its final EV domain so observation noise cannot
 // become a large nonlinear luminance change. Manual exposure remains direct.
@@ -2460,11 +2458,11 @@ vec3 Iab_to_LMS(vec3 Iab) {
     return Iab * M;
 }
 
-// https://doi.org/10.2352/ISSN.2169-2629.2017.25.264
 // Optimized matrices for the Jzazbz LMS-to-I conversion.
-// https://doi.org/10.1364/OE.413659
+// [A Uniform and Hue Linear Color Space for Perceptual Image Processing Including HDR and Wide Gamut Image Signal](https://doi.org/10.2352/ISSN.2169-2629.2017.25.264)
 // ZCAM defines Iz = G' - ε, where ε = 3.7035226210190005e-11.
 // However, it appears we do not need it.
+// [ZCAM, a colour appearance model based on a high dynamic range uniform colour space](https://doi.org/10.1364/OE.413659)
 vec3 LMS_to_Iab_optimized(vec3 LMS) {
     const mat3 M = mat3(
         0.0,       1.0,       0.0,
@@ -2533,10 +2531,9 @@ float hke_fh(float h) {
     return result * hk_effect_compensate_scaling;
 }
 
-// Lightness modifications of the CIECAM16 and CIELAB based
-// on the Helmholtz-Kohlrausch effect
-// by Liao et al.
-// https://doi.org/10.1364/OE.534073
+// Source of the Helmholtz-Kohlrausch correction constants used by the
+// hke_* functions below.
+// [Lightness modifications of the CIECAM16 and CIELAB based on the Helmholtz-Kohlrausch effect](https://doi.org/10.1364/OE.534073)
 float J_to_Jhk(vec3 JCh) {
     float J = JCh.x;
     float C = JCh.y;
@@ -2551,9 +2548,9 @@ float Jhk_to_J(vec3 JCh) {
     return J - C * hke_fh(h);
 }
 
-// https://www.itu.int/rec/R-REC-BT.2124
 // ΔE_ITP_JND = 1 / 720
 // 0.0001 of Cz is much smaller than a JND
+// [BT.2124: Objective metric for the assessment of the potential visibility of colour differences in television](https://www.itu.int/rec/R-REC-BT.2124)
 const float epsilon = 0.0001;
 
 vec3 Lab_to_LCh(vec3 Lab) {
@@ -2579,13 +2576,9 @@ vec3 LCh_to_Lab(vec3 LCh) {
     return vec3(L, a, b);
 }
 
-// Perceptually uniform color space for image signals including
-// high dynamic range and wide gamut
-// by Safdar et al.
-// https://doi.org/10.1364/OE.25.015131
-//
-// an optimized version of the LMS to Iab matrix was used,
+// An optimized version of the LMS to Iab matrix was used,
 // and H-K effect compensation was added.
+// [Perceptually uniform color space for image signals including high dynamic range and wide gamut](https://doi.org/10.1364/OE.25.015131)
 vec3 RGB_to_Jab(vec3 color) {
     color *= reference_white;
     color = RGB_to_XYZ(color);
@@ -2628,9 +2621,7 @@ float f_contrast_slope(float c) {
     return exp2(c);
 }
 
-// Hyperbola tone mapping
-// by suzuki et al.
-// https://technorgb.blogspot.com/2018/02/hyperbola-tone-mapping.html
+// [Hyperbola tone mapping](https://technorgb.blogspot.com/2018/02/hyperbola-tone-mapping.html)
 float f_toe_suzuki(float x, float slope, float x0, float y0, float x1, float y1) {
     float dx = x1 - x0;
     float dy = y1 - y0;
@@ -2653,9 +2644,7 @@ float f_shoulder_suzuki(float x, float slope, float x0, float y0, float x1, floa
     return y0 + scale * dt / (dt * k + base);
 }
 
-// Filmic Tonemapping with Piecewise Power Curves
-// by John Hable
-// http://filmicworlds.com/blog/filmic-tonemapping-with-piecewise-power-curves/
+// [Filmic Tonemapping with Piecewise Power Curves](https://filmicworlds.com/blog/filmic-tonemapping-with-piecewise-power-curves/)
 float f_toe_hable(float x, float slope, float x0, float y0, float x1, float y1) {
     float dx = x1 - x0;
     float dy = y1 - y0;
@@ -3437,8 +3426,8 @@ float chroma_correction_attenuation(float x, float rate, float threshold) {
     return pow(norm, 1.0 + rate * (1.0 - norm));
 }
 
-// based on the chroma correction method for ICtCp in BT.2390/BT.2408
-// https://www.itu.int/pub/R-REP-BT.2408
+// Based on the chroma correction method for ICtCp in BT.2390/BT.2408
+// [BT.2408: Guidance for operational practices in HDR television production](https://www.itu.int/pub/R-REP-BT.2408)
 //
 // a power factor is added to increase correction rate.
 //
@@ -3446,10 +3435,10 @@ float chroma_correction_attenuation(float x, float rate, float threshold) {
 // V = sqrt(J^2 + C^2)
 // D = sqrt((J_max - J)^2 + C^2)
 //
-// more specific definitions of V and D for Jzazbz,
+// More specific definitions of V and D for Jzazbz,
 // see the following links:
-// https://doi.org/10.2352/ISSN.2169-2629.2018.26.96
-// https://doi.org/10.2352/issn.2169-2629.2019.27.43
+// [A Colour Appearance Model based on Jzazbz](https://doi.org/10.2352/ISSN.2169-2629.2018.26.96)
+// [Colour Image Enhancement using Perceptual Saturation and Vividness](https://doi.org/10.2352/ISSN.2169-2629.2019.27.43)
 vec2 chroma_correction(vec2 ab, float l1, float l2) {
     float ratio_min = min(l1, l2) / max(max(l1, l2), 1e-6);
     float ratio_scaled = mix(1.0, ratio_min, chroma_correction_scaling);
@@ -3852,7 +3841,7 @@ vec4 draw_matrix_metering(vec2 position) {
 // is C / Cmax, where Cmax is the largest Jzazbz chroma of the Rec. 2020
 // primaries at the 1000-nit HLG nominal peak. The report's H-K-independent
 // a/b coordinates match this vectorscope even when J compensation is active.
-// https://www.itu.int/pub/R-REP-BT.2525
+// [BT.2525: A method of skin tone analysis for programme production](https://www.itu.int/pub/R-REP-BT.2525)
 const vec2 BT2525_SKIN_HUE_RANGE = vec2(35.4, 70.6);
 const vec2 BT2525_SKIN_SATURATION_RANGE = vec2(0.085, 0.281);
 const float BT2525_HLG_MAX_PRIMARY_CHROMA = 0.34074623;
