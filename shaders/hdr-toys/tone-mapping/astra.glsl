@@ -3055,15 +3055,17 @@ vec3 sanitize_vectorscope_rgb(
     out vec3 positive_rgb
 ) {
     float safe_reference_white = sanitize_bounded(reference_white, 0.0, pw);
-    // Clamp in relative units first: multiplying back yields the same
-    // [0, pw] absolute range as clamping the product directly, and the
-    // color-coding form needs no inverse division at the call site. With a
-    // degenerate reference_white this still reflects the content peak.
-    positive_rgb = sanitize_bounded(
-        rgb,
-        0.0,
-        pw / max(safe_reference_white, 1e-6)
-    );
+    // Reject NaN and negatives first. Out-of-range input (effective
+    // luminance above the PQ mastering range, only reachable with non-PQ
+    // transfer formats) is clamped proportionally so the vectorscope hue
+    // is preserved; a per-channel clamp collapses the largest component
+    // and shifts the trace hue. With a degenerate reference_white the
+    // positive form still reflects the content peak.
+    positive_rgb = sanitize_bounded(rgb, 0.0, pw);
+    float peak = max(max(positive_rgb.r, positive_rgb.g), positive_rgb.b);
+    float limit = pw / max(safe_reference_white, 1e-6);
+    if (peak > limit)
+        positive_rgb *= limit / peak;
     return positive_rgb * safe_reference_white;
 }
 
