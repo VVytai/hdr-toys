@@ -2172,6 +2172,13 @@ void record_curve_temporal_pts() {
     curve_temporal_valid = 1u;
 }
 
+void invalidate_curve_temporal() {
+    // Only the valid flag is load-bearing: the pts read in
+    // prepare_curve_temporal sits behind the valid == 1 gate, and
+    // record_curve_temporal_pts rewrites pts before any such read.
+    curve_temporal_valid = 0u;
+}
+
 void prepare_curve_temporal() {
     curve_temporal_reset = 1u;
 
@@ -2185,8 +2192,7 @@ void prepare_curve_temporal() {
         //
         // This recovery replaces the pre-diff behavior of permanently
         // poisoning smoothed_curve with NaN.
-        curve_temporal_pts = 0u;
-        curve_temporal_valid = 0u;
+        invalidate_curve_temporal();
         return;
     }
 
