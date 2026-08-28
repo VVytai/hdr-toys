@@ -244,6 +244,12 @@
 // but in every configuration that gates this pass off their results are
 // discarded or derived from a constant map.
 //
+// WHEN conditions must reference only parameters or the built-in OUTPUT
+// size: libplacebo evaluates WHEN before resolving BIND, so a texture
+// reference (e.g. METERING.w) errors out when the producing pass is gated
+// off (libplacebo issue 376). Width/height expressions are safe because
+// they are evaluated only after the binds resolve.
+//
 // Body comments must never contain the header-line marker (two slashes
 // plus an exclamation mark): the parser splits pass bodies at it anywhere
 // in the text.
