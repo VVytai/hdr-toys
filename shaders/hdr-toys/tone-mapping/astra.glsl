@@ -310,6 +310,15 @@ vec4 hook() {
     );
 }
 
+//!HOOK OUTPUT
+//!BIND METERING
+//!SAVE METERING
+//!COMPONENTS 2
+//!WIDTH METERING.w 2 /
+//!HEIGHT METERING.h 2 /
+//!WHEN OUTPUT.w 1024 > OUTPUT.h 1024 > + OUTPUT.w 576 > OUTPUT.h 576 > * +
+//!DESC metering (spatial stabilization, halve 1)
+
 // The metering map used to be reduced to 512x288 in a single step. At 4K that
 // is a factor of 7.5 per axis taken with one bilinear tap, i.e. point sampling
 // with aliasing: which pixels survive depends on the subpixel alignment, so a
@@ -319,15 +328,6 @@ vec4 hook() {
 // so only as many run as the source resolution needs: two at 4K, one at 1080p.
 // Testing both dimensions against both landscape thresholds makes the chain
 // orientation-independent before portrait analysis is rotated below.
-
-//!HOOK OUTPUT
-//!BIND METERING
-//!SAVE METERING
-//!COMPONENTS 2
-//!WIDTH METERING.w 2 /
-//!HEIGHT METERING.h 2 /
-//!WHEN OUTPUT.w 1024 > OUTPUT.h 1024 > + OUTPUT.w 576 > OUTPUT.h 576 > * +
-//!DESC metering (spatial stabilization, halve 1)
 vec4 hook() { return METERING_tex(METERING_pos); }
 
 //!HOOK OUTPUT
