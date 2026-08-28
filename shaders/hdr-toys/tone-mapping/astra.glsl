@@ -2708,7 +2708,17 @@ float f(
     // Pivot the middle line around mid-gray with slope 2^cb. Prefer the
     // configured x junctions; if their y values cross an output endpoint,
     // move the junction inward along the same line instead of flattening the
-    // requested contrast with an independent y clamp.
+    // requested contrast with an independent y clamp. Note the moved
+    // junction lands exactly on the endpoint, so the toe/shoulder region
+    // between it and x0/x3 collapses to a flat clip at that endpoint: the
+    // steep middle line starts at the moved x instead of extending past the
+    // output range (the pre-refactor behavior). A high contrast_bias can
+    // therefore override the configured junction positions, e.g. with
+    // shadow_weight 1 and cb = 1 at contrast_ratio 1000 the junction moves
+    // to (mid-gray + ob) / 2. At the default reference white this is
+    // J ~= 0.059. The flat clip covers [ib, x1); when ib == ob, that span
+    // occupies about 24.3% of the configured [ob, ow] output interval. A
+    // darker input black extends the clipped span further.
     y1 = midgray + target_slope * (x1 - midgray);
     if (y1 < y0) {
         y1 = y0;
@@ -2743,6 +2753,7 @@ float f(
     // keep that guard value literal and the strict '<' comparisons above, or
     // a NaN path reopens here.
     if (x < x1) {
+        // Flat clip at the black endpoint; the steep segment begins at x1.
         if (y1 <= y0)
             return y0;
 
