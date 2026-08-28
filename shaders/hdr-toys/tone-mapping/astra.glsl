@@ -2100,6 +2100,13 @@ float reset_auto_exposure(float target) {
 float stabilize_auto_exposure(float target, bool automatic) {
     // Manual exposure is clamped to the declared [-64, 64] range, and a
     // non-finite target snaps to neutral EV instead of poisoning the ramp.
+    // The curve path uses the complementary policy (hold last valid value,
+    // see stabilize_curve_value): a broken frame must not re-baseline the
+    // whole LUT, while exposure re-baselines at neutral. In practice the
+    // asymmetry is unreachable: a non-finite target with a finite PTS
+    // requires a non-finite user parameter, and on the reachable broken
+    // frame (non-finite PTS) both paths render the raw target and recover
+    // with the same two-frame contract below.
     target = finite_float(target) ? clamp(target, -64.0, 64.0) : 0.0;
     // Self-healing guard: VAR-backed state can hold NaN across shader
     // reloads. Treat such state as uninitialized rather than mixing NaN into
@@ -2853,6 +2860,13 @@ float stabilize_curve_value(int index, float target) {
     // being re-baselined: never read it for history in that case.
     bool history_valid = curve_temporal_reset == 0u &&
                          finite_float(smoothed_curve[index]);
+    // Hold the last valid value on a non-finite target. This is deliberate:
+    // unlike exposure, which snaps to neutral (see stabilize_auto_exposure),
+    // a broken frame must not re-baseline the whole curve LUT. The snap/hold
+    // asymmetry is unreachable in practice: a non-finite target with a
+    // finite PTS requires a non-finite user parameter, and the reachable
+    // broken frame (non-finite PTS) hard-writes the raw target on both
+    // paths.
     if (!finite_float(target))
         target = history_valid ? smoothed_curve[index] : 0.0;
 
