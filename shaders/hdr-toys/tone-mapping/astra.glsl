@@ -1624,20 +1624,24 @@ void temporal_clear_scene_candidate() {
     metered_scene_candidate_active = 0u;
 }
 
-void temporal_initialize_scalar_state() {
+void temporal_set_scalar_state(uint histogram_valid) {
     temporal_clear_scene_candidate();
-    metered_histogram_valid = 1u;
-    metered_temporal_pts = pts_to_uint(PTS);
+    metered_histogram_valid = histogram_valid;
     metered_scene_adaptation_end_pts = 0u;
     metered_scene_fast_response = 0u;
 }
 
+void temporal_initialize_scalar_state() {
+    temporal_set_scalar_state(1u);
+    metered_temporal_pts = pts_to_uint(PTS);
+}
+
 void temporal_invalidate_state() {
-    temporal_clear_scene_candidate();
-    metered_histogram_valid = 0u;
-    metered_temporal_pts = 0u;
-    metered_scene_adaptation_end_pts = 0u;
-    metered_scene_fast_response = 0u;
+    // Only the validity flag is load-bearing here: the next finite-PTS
+    // frame takes temporal_initialize_frame, which rewrites pts and the
+    // scene flags via temporal_set_scalar_state before any read. Keep pts
+    // out of the shared reset so invalidation does not perform a dead write.
+    temporal_set_scalar_state(0u);
 }
 
 void temporal_initialize_frame() {
