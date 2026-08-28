@@ -4085,6 +4085,10 @@ const uint NUMBER_FIXED_MAX = 9999999u;
 
 uint number_fixed_value(float value) {
     float magnitude = abs(value);
+    // abs(NaN) >= 0.0 is false, so the ternary is a NaN guard, not a
+    // tautology: it renders NaN as 0.00 and keeps uint(NaN), whose value is
+    // undefined, out of the conversion. Current callers only pass finite
+    // values (EV is clamped to +-64, PQ rows to [0, 1]), kept as defense.
     float scaled = magnitude >= 0.0
         ? min(magnitude * 100.0 + 0.5, float(NUMBER_FIXED_MAX))
         : 0.0;
