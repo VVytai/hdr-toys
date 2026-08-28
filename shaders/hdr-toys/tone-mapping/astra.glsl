@@ -2579,8 +2579,10 @@ vec3 LCh_to_Lab(vec3 LCh) {
     return vec3(L, a, b);
 }
 
-// An optimized version of the LMS to Iab matrix was used,
-// and H-K effect compensation was added.
+// Jzazbz serves as the working space, with two deviations from the
+// paper's definition: the LMS-to-Iab matrix is the optimized variant
+// (see LMS_to_Iab_optimized, CIC 2017), and J is the H-K-compensated
+// lightness from J_to_Jhk.
 // [Perceptually uniform color space for image signals including high dynamic range and wide gamut](https://doi.org/10.1364/OE.25.015131)
 vec3 RGB_to_Jab(vec3 color) {
     color *= reference_white;
