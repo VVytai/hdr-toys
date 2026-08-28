@@ -326,7 +326,7 @@ vec4 hook() {
 // is a factor of 7.5 per axis taken with one bilinear tap, i.e. point sampling
 // with aliasing: which pixels survive depends on the subpixel alignment, so a
 // small moving highlight makes the measured peak jump while nothing in the
-// scene changes. Halving repeatedly instead averages exactly 2x2 per step before
+// scene changes. Halving repeatedly instead averages exactly 2×2 per step before
 // the fixed-size histogram and matrix analysis. The passes are conditional,
 // so only as many run as the source resolution needs: two at 4K, one at 1080p.
 // Testing both dimensions against both landscape thresholds makes the chain
@@ -2460,7 +2460,7 @@ vec3 Iab_to_LMS(vec3 Iab) {
 
 // Optimized matrices for the Jzazbz LMS-to-I conversion.
 // [A Uniform and Hue Linear Color Space for Perceptual Image Processing Including HDR and Wide Gamut Image Signal](https://doi.org/10.2352/ISSN.2169-2629.2017.25.264)
-// ZCAM defines Iz = G' - ε, where ε = 3.7035226210190005e-11.
+// ZCAM defines I_z = G' - ε, where ε = 3.7035226210190005e-11.
 // However, it appears we do not need it.
 // [ZCAM, a colour appearance model based on a high dynamic range uniform colour space](https://doi.org/10.1364/OE.413659)
 vec3 LMS_to_Iab_optimized(vec3 LMS) {
@@ -2548,8 +2548,8 @@ float Jhk_to_J(vec3 JCh) {
     return J - C * hke_fh(h);
 }
 
-// ΔE_ITP_JND = 1 / 720
-// 0.0001 of Cz is much smaller than a JND
+// The JND coefficient of ΔE_{ITP} is 1 / 720
+// 0.0001 C_z is much smaller than a JND
 // [BT.2124: Objective metric for the assessment of the potential visibility of colour differences in television](https://www.itu.int/rec/R-REC-BT.2124)
 const float epsilon = 0.0001;
 
@@ -2674,8 +2674,8 @@ float f_shoulder_hable(float x, float slope, float x0, float y0, float x1, float
 }
 
 // Hable shoulder with overshoot: extends the virtual white point to
-// (x1 + overshoot * dx, y1 + overshoot * dy), so the curve still has
-// non-zero slope at x1.  Accepts a slight slope discontinuity at x0.
+// (x_1 + overshoot * dx, y_1 + overshoot * dy), so the curve still has
+// non-zero slope at x_1. Accepts a slight slope discontinuity at x_0.
 // overshoot = 0 recovers f_shoulder_hable.
 float f_shoulder_hable_overshoot(
     float x, float slope,
@@ -2695,7 +2695,7 @@ float f_shoulder_hable_overshoot(
 
 // Generalized rational shoulder. In normalized coordinates t and g(t):
 //
-//   g(t) = 1 - (1 - t) / (1 + a*t)^p
+//   g(t) = 1 - (1 - t) / (1 + a * t)^p
 //
 // It passes through both anchors, matches the incoming slope at t = 0,
 // remains increasing beyond t = 1, and has a monotonically decreasing slope.
@@ -2735,12 +2735,12 @@ float f(
     float x3 = iw;
     float y3 = ow;
 
-    // Pivot the middle line around mid-gray with slope 2^cb. Prefer the
+    // Pivot the middle line around mid-gray with slope 2^{cb}. Prefer the
     // configured x junctions; if their y values cross an output endpoint,
     // move the junction inward along the same line instead of flattening the
     // requested contrast with an independent y clamp. Note the moved
     // junction lands exactly on the endpoint, so the toe/shoulder region
-    // between it and x0/x3 collapses to a flat clip at that endpoint: the
+    // between it and x_0/x_3 collapses to a flat clip at that endpoint: the
     // steep middle line starts at the moved x instead of extending past the
     // output range (the pre-refactor behavior). A high contrast_bias can
     // therefore override the configured junction positions, e.g. with
@@ -2785,7 +2785,7 @@ float f(
     // keep that guard value literal and the strict '<' comparisons above, or
     // a NaN path reopens here.
     if (x < x1) {
-        // Flat clip at the black endpoint; the steep segment begins at x1.
+        // Flat clip at the black endpoint; the steep segment begins at x_1.
         if (y1 <= y0)
             return y0;
 
@@ -3433,7 +3433,7 @@ float chroma_correction_attenuation(float x, float rate, float threshold) {
 //
 // this is a correction in generic vividness and depth.
 // V = sqrt(J^2 + C^2)
-// D = sqrt((J_max - J)^2 + C^2)
+// D = sqrt((J_{max} - J)^2 + C^2)
 //
 // More specific definitions of V and D for Jzazbz,
 // see the following links:
@@ -3540,7 +3540,7 @@ float J_to_I(float J) {
 }
 
 // The 1D LUT is stored in Astra's J domain. For a neutral stimulus the H-K
-// compensation is zero, so J <-> Iz <-> absolute luminance gives its PQ-domain
+// compensation is zero, so J ↔ I_z ↔ absolute luminance gives its PQ-domain
 // transfer curve for direct comparison with the metering histogram.
 float sample_preview_curve_j(float coordinate) {
     float position = clamp(coordinate, 0.0, 1.0) *
@@ -3838,7 +3838,7 @@ vec4 draw_matrix_metering(vec2 position) {
 }
 
 // ITU-R BT.2525-0 HLG reference for Fitzpatrick skin types 1-4. Saturation
-// is C / Cmax, where Cmax is the largest Jzazbz chroma of the Rec. 2020
+// is C / C_{max}, where C_{max} is the largest Jzazbz chroma of the Rec. 2020
 // primaries at the 1000-nit HLG nominal peak. The report's H-K-independent
 // a/b coordinates match this vectorscope even when J compensation is active.
 // [BT.2525: A method of skin tone analysis for programme production](https://www.itu.int/pub/R-REP-BT.2525)
