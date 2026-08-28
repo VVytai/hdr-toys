@@ -3052,11 +3052,19 @@ vec3 sanitize_bounded(vec3 value, float lower_bound, float upper_bound) {
 
 vec3 sanitize_vectorscope_rgb(
     vec3 rgb,
-    out float safe_reference_white
+    out vec3 positive_rgb
 ) {
-    safe_reference_white = sanitize_bounded(reference_white, 0.0, pw);
-    vec3 absolute_rgb = rgb * safe_reference_white;
-    return sanitize_bounded(absolute_rgb, 0.0, pw);
+    float safe_reference_white = sanitize_bounded(reference_white, 0.0, pw);
+    // Clamp in relative units first: multiplying back yields the same
+    // [0, pw] absolute range as clamping the product directly, and the
+    // color-coding form needs no inverse division at the call site. With a
+    // degenerate reference_white this still reflects the content peak.
+    positive_rgb = sanitize_bounded(
+        rgb,
+        0.0,
+        pw / max(safe_reference_white, 1e-6)
+    );
+    return positive_rgb * safe_reference_white;
 }
 
 vec3 fetch_atlas_raw(ivec2 position) {
@@ -3159,16 +3167,14 @@ uint vectorscope_bin(vec2 ab) {
 
 void hook() {
     vec3 rgb = HOOKED_tex(HOOKED_pos).rgb;
-    float safe_reference_white;
+    vec3 positive_rgb;
     vec3 absolute_rgb = sanitize_vectorscope_rgb(
         rgb,
-        safe_reference_white
+        positive_rgb
     );
     vec3 jab = sample_vectorscope_rgb_to_jab(absolute_rgb);
     uint index = vectorscope_bin(jab.yz);
     uint base = index * VECTORSCOPE_CHANNEL_COUNT;
-    vec3 positive_rgb = absolute_rgb /
-                        max(safe_reference_white, 1e-6);
     float encoding_peak = max(
         max(max(positive_rgb.r, positive_rgb.g), positive_rgb.b),
         1.0
