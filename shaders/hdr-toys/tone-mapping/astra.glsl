@@ -2493,6 +2493,7 @@ float J_to_I(float J) {
 }
 
 // CIELUV: -0.01585, -0.03017, -0.04556, -0.02667, -0.00295, 0.14592, 0.05084, -0.01900, -0.00764
+// [Prediction of the Helmholtz-Kohlrausch effect using the CIELUV formula](https://doi.org/10.1002/(SICI)1520-6378(199608)21:4%3C252::AID-COL1%3E3.0.CO;2-P)
 float hke_fh_nayatani(
     float h, float k1,
     float k2, float k3, float k4, float k5,
@@ -2507,11 +2508,13 @@ float hke_fh_nayatani(
 
 // CIECAM02: -0.218, 0.167, -0.500, 0.032, 0.887
 // CAM16: -0.160, 0.132, -0.405, 0.080, 0.792
+// [Extending CIECAM02 and CAM16 for the Helmholtz–Kohlrausch effect](https://doi.org/10.1002/col.22793)
 float hke_fh_hellwig(float h, float a1, float a2, float a3, float a4, float a5) {
     return a1 * cos(h) + a2 * cos(2.0 * h) + a3 * sin(h) + a4 * sin(2.0 * h) + a5;
 }
 
 // CIELAB: 0.1644, 0.0603, 0.1307, 0.0060
+// [The Helmholtz–Kohlrausch effect on display-based light colors and simulated substrate colors](https://doi.org/10.1002/col.22839)
 float hke_fh_high(float h, float k1, float k2, float k3, float k4) {
     h = mod(mod(degrees(h), 360.0) + 360.0, 360.0);
     float by = k1 * abs(sin(radians((h - 90.0)/ 2.0))) + k2;
