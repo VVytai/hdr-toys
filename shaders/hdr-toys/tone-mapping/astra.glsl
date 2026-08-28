@@ -234,6 +234,20 @@
 //!WHEN enable_metering 0 > max_pq_y 0 > ! * scene_max_r 0 > scene_max_g 0 > + scene_max_b 0 > + ! * preview_metering +
 //!DESC metering (intensity map)
 
+// The peak conditions above must stay aligned with resolve_metering_metrics'
+// has_pq_peak/has_scene_peak: both treat NaN and negative metadata as
+// absent, so the resolver never consumes METERED while this pass is gated
+// off. The two expressions cannot share code - change both sides together.
+//
+// The alignment covers only the resolver: the histogram, statistics,
+// temporal, and preview passes consume METERING/METERED unconditionally,
+// but in every configuration that gates this pass off their results are
+// discarded or derived from a constant map.
+//
+// Body comments must never contain the header-line marker (two slashes
+// plus an exclamation mark): the parser splits pass bodies at it anywhere
+// in the text.
+
 const float m1 = 2610.0 / 4096.0 / 4.0;
 const float m2 = 2523.0 / 4096.0 * 128.0;
 const float c1 = 3424.0 / 4096.0;
@@ -1973,8 +1987,11 @@ MeteringMetrics resolve_metering_metrics() {
     bool has_pq_peak = pq_peak > 0.0;
     bool has_scene_peak = any(greaterThan(scene_max_rgb, vec3(0.0)));
 
-    // This must match the peak-metadata conditions on the intensity-map pass.
-    // A skipped pass leaves METERED unchanged, so its values are not current.
+    // This must match the peak-metadata conditions on the intensity-map pass
+    // (its WHEN header with the max_pq_y 0 > ! ... expression). Both sides
+    // treat NaN and negative metadata as absent, so a skipped pass can never
+    // make the resolver consume stale METERED values. The two expressions
+    // cannot share code; any change to one side must update the other.
     bool use_measured = enable_metering > 0 &&
                         !has_pq_peak && !has_scene_peak;
 
