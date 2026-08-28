@@ -300,6 +300,9 @@ float metering_max_rgb(vec3 rgb) {
     return pq_eotf_inv(maximum_abs);
 }
 
+// METERING is a 2-component texture: .x carries the metering intensity,
+// .y the maximum RGB channel in PQ. Downstream passes read only .xy; the
+// .zw written here and by the blur chain are dropped by the format.
 vec4 hook() {
     vec3 rgb = HOOKED_tex(HOOKED_pos).rgb;
     return vec4(
