@@ -2098,6 +2098,8 @@ float reset_auto_exposure(float target) {
 }
 
 float stabilize_auto_exposure(float target, bool automatic) {
+    // Manual exposure is clamped to the declared [-64, 64] range, and a
+    // non-finite target snaps to neutral EV instead of poisoning the ramp.
     target = finite_float(target) ? clamp(target, -64.0, 64.0) : 0.0;
     // Self-healing guard: VAR-backed state can hold NaN across shader
     // reloads. Treat such state as uninitialized rather than mixing NaN into
