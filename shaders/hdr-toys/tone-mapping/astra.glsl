@@ -3485,6 +3485,12 @@ float pq_eotf(float x) {
     return pow(max(t - c1, 0.0) / (c2 - c3 * t), 1.0 / m1) * pw;
 }
 
+// These inverse transfer primitives assume finite, non-negative input: a
+// negative or NaN argument reaches pow() and produces NaN. They deliberately
+// impose no upper bound; values above pw encode above 1.0, and callers that
+// require normalized PQ must clamp the result. Every call site in this pass
+// feeds clamped or eotf-derived non-negative values. A new call site must
+// preserve that lower-bound contract.
 float pq_eotf_inv(float x) {
     float t = pow(x / pw, m1);
     return pow((c1 + c2 * t) / (1.0 + c3 * t), m2);
