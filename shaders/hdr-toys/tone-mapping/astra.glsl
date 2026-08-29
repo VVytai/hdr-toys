@@ -213,8 +213,8 @@
 //!VAR float exposure_scale
 //!VAR float exposed_max_i
 //!VAR float exposed_min_i
-//!VAR float output_black_j
-//!VAR float output_white_j
+//!VAR float output_max_j
+//!VAR float output_min_j
 //!STORAGE
 
 //!BUFFER VECTORSCOPE
@@ -2344,10 +2344,10 @@ void publish_input_metering_metadata(MeteringMetrics metrics) {
 }
 
 void publish_output_lightness_range() {
-    output_black_j = I_to_J(
+    output_max_j = I_to_J(iz_eotf_inv(reference_white));
+    output_min_j = I_to_J(
         iz_eotf_inv(reference_white / contrast_ratio)
     );
-    output_white_j = I_to_J(iz_eotf_inv(reference_white));
 }
 
 void update_metering_metadata() {
@@ -2867,8 +2867,8 @@ float f(float x, float iw, float ib, float ow, float ob) {
 }
 
 float evaluate_tone_curve(float x) {
-    float ow = output_white_j;
-    float ob = output_black_j;
+    float ow = output_max_j;
+    float ob = output_min_j;
     float iw = I_to_J(iz_eotf_inv(pq_eotf(exposed_max_i)));
     float ib = I_to_J(iz_eotf_inv(pq_eotf(exposed_min_i)));
 
@@ -2917,8 +2917,8 @@ float decode_signed_coordinate(float coordinate, float limit) {
 
 vec3 lut_coordinates_to_LAB(vec3 coordinates) {
     float L = mix(
-        output_black_j,
-        output_white_j,
+        output_min_j,
+        output_max_j,
         clamp(coordinates.x, 0.0, 1.0)
     );
     float a_ratio = decode_signed_coordinate(coordinates.y, A_RATIO_LIMIT);
@@ -3432,8 +3432,8 @@ float encode_signed_coordinate(float value, float limit) {
 }
 
 float encode_output_lightness(float lightness) {
-    float range = max(output_white_j - output_black_j, 1e-6);
-    return clamp((lightness - output_black_j) / range, 0.0, 1.0);
+    float range = max(output_max_j - output_min_j, 1e-6);
+    return clamp((lightness - output_min_j) / range, 0.0, 1.0);
 }
 
 vec3 RGB_to_lut_coordinates(vec3 rgb) {
