@@ -2173,10 +2173,18 @@ void record_curve_temporal_pts() {
 }
 
 void prepare_curve_temporal() {
-    curve_temporal_alpha = 1.0;
     curve_temporal_reset = 1u;
 
     if (!finite_float(PTS)) {
+        // Reset stays armed through the invalidation below, so an
+        // unknown-PTS frame hard-writes the whole 1024-point curve LUT
+        // for two frames (this one and the next) before the normal ramp
+        // resumes. The alpha write is deliberately omitted: every path
+        // that clears reset rewrites alpha in the same invocation, and
+        // every reset == 1 path hard-writes without reading it.
+        //
+        // This recovery replaces the pre-diff behavior of permanently
+        // poisoning smoothed_curve with NaN.
         curve_temporal_pts = 0u;
         curve_temporal_valid = 0u;
         return;
