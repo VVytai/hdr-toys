@@ -4305,8 +4305,6 @@ vec4 draw_metrics_panel(vec2 px) {
         (LABEL_CHARACTERS + 1.0 + 5.0 + NUMBER_DECIMAL_CHARACTERS) *
         (CHAR_W + SPACING);
     bool show_histogram_metrics = enable_metering > 1u;
-    bool show_matrix_metrics = show_histogram_metrics &&
-                               metered_zone_valid > 0u;
     // Reserve the histogram and matrix rows whenever enable_metering > 1,
     // not only while they are shown: metered_zone_valid can appear and
     // disappear during playback, and a row count that follows it moves the
@@ -4336,6 +4334,12 @@ vec4 draw_metrics_panel(vec2 px) {
 
     if (outside_panel_bounds(px, panel_min, panel_max))
         return vec4(0.0);
+
+    // Read the frame-uniform zone flag only for fragments inside the panel:
+    // row_count does not depend on it, so loading it before the bounds
+    // check was a whole-frame per-fragment SSBO read for nothing.
+    bool show_matrix_metrics = show_histogram_metrics &&
+                               metered_zone_valid > 0u;
 
     float label_width = number_advance(LABEL_CHARACTERS);
     float pq_width = max(
