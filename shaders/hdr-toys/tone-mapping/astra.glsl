@@ -2973,6 +2973,9 @@ float stabilize_curve_value(int index, float target) {
         target,
         curve_temporal_alpha
     );
+    // Likely unreachable from in-shader writes: both mix operands are
+    // finite here and curve_temporal_alpha is in [0, 1]. Kept as defense
+    // against non-finite state crossing a shader reload.
     value = finite_float(value) ? value : target;
     smoothed_curve[index] = value;
     return value;
