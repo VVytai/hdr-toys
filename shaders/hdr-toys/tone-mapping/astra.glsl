@@ -3828,8 +3828,9 @@ const float PREVIEW_MATRIX_WEIGHT_MAX = 4.0;
 
 // Overlay the actual matrix inputs and weights on their source regions. Blue
 // zones pull the matrix estimate below the histogram average, orange zones
-// pull it above, and opacity follows their raw reduction weight. Cross-hatched
-// cells have been excluded as presentation borders.
+// pull it above. Active zones tint a small centered rectangle outline, so
+// the video stays visible and neighboring frames never merge.
+// Striped cells have been excluded as presentation borders.
 vec4 draw_matrix_metering(vec2 position) {
     if (metered_zone_valid == 0u)
         return vec4(0.0);
@@ -3853,13 +3854,24 @@ vec4 draw_matrix_metering(vec2 position) {
     vec2 cell_size = oriented_size / matrix_size;
     vec2 edge_distance = min(cell_position, 1.0 - cell_position) *
                          cell_size;
-    if (min(edge_distance.x, edge_distance.y) < 1.0)
-        return vec4(vec3(0.82), 0.55);
 
     // The statistics pass publishes the resolved zone weight separately from
     // the spread used by active-region and reliability calculations.
     float zone_weight = metered_zone_preview_weight[index];
+    float relative_weight = clamp(
+        zone_weight / PREVIEW_MATRIX_WEIGHT_MAX,
+        0.0,
+        1.0
+    );
+    float blend_visibility = mix(
+        0.90,
+        1.0,
+        metered_matrix_blend
+    );
+
     if (zone_weight <= 0.0) {
+        if (min(edge_distance.x, edge_distance.y) < 1.0)
+            return vec4(vec3(0.82), 0.55);
         vec2 oriented_px = clamped_position * oriented_size;
         float hatch = step(
             0.5,
@@ -3867,6 +3879,22 @@ vec4 draw_matrix_metering(vec2 position) {
         );
         return vec4(mix(vec3(0.04), vec3(0.18), hatch), 0.32);
     }
+
+    // Centered rectangle outline at 30% of the cell with a fixed width.
+    // Each side is clipped to the opposite span so only the rectangle
+    // itself draws: the naive min-union of both axes leaked the sides past
+    // the corners and joined neighboring cells into one continuous lattice.
+    // The difference-driven tint and the weight-driven opacity match the
+    // original fill.
+    vec2 frame_half_extent = 0.15 * cell_size;
+    vec2 center_offset = abs(cell_position - 0.5) * cell_size;
+    vec2 perimeter_distance = abs(center_offset - frame_half_extent);
+    bool on_vertical_side = perimeter_distance.x < 1.0 &&
+                            center_offset.y <= frame_half_extent.y;
+    bool on_horizontal_side = perimeter_distance.y < 1.0 &&
+                              center_offset.x <= frame_half_extent.x;
+    if (!on_vertical_side && !on_horizontal_side)
+        return vec4(0.0);
 
     float zone_average = metered_zone_average[index];
     float signed_difference = clamp(
@@ -3882,16 +3910,6 @@ vec4 draw_matrix_metering(vec2 position) {
         neutral,
         signed_difference < 0.0 ? low : high,
         abs(signed_difference)
-    );
-    float relative_weight = clamp(
-        zone_weight / PREVIEW_MATRIX_WEIGHT_MAX,
-        0.0,
-        1.0
-    );
-    float blend_visibility = mix(
-        0.90,
-        1.0,
-        metered_matrix_blend
     );
     float opacity = mix(0.40, 0.72, relative_weight) *
                     blend_visibility;
