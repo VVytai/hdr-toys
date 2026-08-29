@@ -1039,7 +1039,7 @@ void publish_matrix_zone(uint zone_index) {
         cumulative = next;
     }
 
-    uint retained_total = MATRIX_ZONE_SAMPLE_COUNT - 2u * trim;
+    uint retained_total = upper_target - lower_target;
     metered_zone_average[zone_index] = sum /
                                        float(max(retained_total, 1u));
     metered_zone_spread[zone_index] =
@@ -1555,7 +1555,7 @@ void reduce_histogram_statistics(
     );
 
     if (tid == 0u) {
-        uint global_retained = global_total - 2u * global_targets.x;
+        uint global_retained = global_targets.y - global_targets.x;
         histogram_average = average_partial[0] /
                             float(max(global_retained, 1u));
         metered_min_i = black_bin << 2u;
