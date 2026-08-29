@@ -1901,9 +1901,10 @@ void hook() { analyze_metering_temporally(); }
 
 // Filter automatic exposure in its final EV domain so observation noise cannot
 // become a large nonlinear luminance change. Manual exposure remains direct.
+// The ramp floor below is shared with the curve LUT via temporal_ramp_alpha.
 const float EXPOSURE_RISE_TIME_SCALE = 0.50;
 const float EXPOSURE_FALL_TIME_SCALE = 0.35;
-const float EXPOSURE_MIN_TIME_CONSTANT = 1.0 / 240.0;
+const float TEMPORAL_RAMP_MIN_TIME_CONSTANT = 1.0 / 240.0;
 const float EXPOSURE_PTS_EPSILON = 1e-6;
 const float OUTPUT_TEMPORAL_SCENE_TIME_SCALE = 0.125;
 const float OUTPUT_TEMPORAL_SCENE_ADAPTATION_SCALE = 0.50;
@@ -1912,7 +1913,6 @@ const float OUTPUT_TEMPORAL_SCENE_ADAPTATION_SCALE = 0.50;
 // single-invocation pass instead of repeating the timestamp state and exp()
 // evaluation in every curve-LUT invocation.
 const float CURVE_TEMPORAL_TIME_SCALE = 0.35;
-const float CURVE_TEMPORAL_MIN_TIME_CONSTANT = 1.0 / 240.0;
 const float CURVE_TEMPORAL_PTS_EPSILON = 1e-6;
 
 bool finite_float(float value) {
@@ -2134,7 +2134,7 @@ float output_temporal_time_scale(float normal_scale) {
     );
     float adaptation_duration = max(
         temporal_stable_duration * OUTPUT_TEMPORAL_SCENE_ADAPTATION_SCALE,
-        EXPOSURE_MIN_TIME_CONSTANT
+        TEMPORAL_RAMP_MIN_TIME_CONSTANT
     );
     bool fast_response = metered_scene_fast_response > 0u &&
                          PTS < adaptation_end &&
@@ -2142,6 +2142,17 @@ float output_temporal_time_scale(float normal_scale) {
     return fast_response
         ? min(normal_scale, OUTPUT_TEMPORAL_SCENE_TIME_SCALE)
         : normal_scale;
+}
+
+// Both temporal consumers ramp with the same exponential form and share the
+// same minimum time constant. Keeping one copy prevents the auto-exposure
+// and curve LUT ramps from drifting apart.
+float temporal_ramp_alpha(float delta_time, float time_scale) {
+    float time_constant = max(
+        temporal_stable_duration * time_scale,
+        TEMPORAL_RAMP_MIN_TIME_CONSTANT
+    );
+    return 1.0 - exp(-delta_time / time_constant);
 }
 
 float reset_auto_exposure(float target) {
@@ -2208,11 +2219,7 @@ float stabilize_auto_exposure(float target, bool automatic) {
         ? EXPOSURE_RISE_TIME_SCALE
         : EXPOSURE_FALL_TIME_SCALE;
     time_scale = output_temporal_time_scale(time_scale);
-    float time_constant = max(
-        temporal_stable_duration * time_scale,
-        EXPOSURE_MIN_TIME_CONSTANT
-    );
-    float alpha = 1.0 - exp(-delta_time / time_constant);
+    float alpha = temporal_ramp_alpha(delta_time, time_scale);
     smoothed_ev = mix(smoothed_ev, target, alpha);
     smoothed_ev_pts = floatBitsToUint(PTS);
     return smoothed_ev;
@@ -2271,11 +2278,7 @@ void prepare_curve_temporal() {
     float time_scale = output_temporal_time_scale(
         CURVE_TEMPORAL_TIME_SCALE
     );
-    float time_constant = max(
-        temporal_stable_duration * time_scale,
-        CURVE_TEMPORAL_MIN_TIME_CONSTANT
-    );
-    curve_temporal_alpha = 1.0 - exp(-delta_time / time_constant);
+    curve_temporal_alpha = temporal_ramp_alpha(delta_time, time_scale);
     curve_temporal_reset = 0u;
 }
 
