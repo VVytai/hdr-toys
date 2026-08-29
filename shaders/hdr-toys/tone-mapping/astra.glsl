@@ -931,8 +931,15 @@ const vec2 MATRIX_METERING_SIZE = vec2(256.0, 144.0);
 // Each entry contains (sum_of_15_bit_values << 9) | sample_count.
 shared uint zone_histogram[MATRIX_ZONE_HISTOGRAM_SIZE];
 
+// Ordered-comparison sanitizer; see the metering intensity pass.
+float sanitize_bounded(float value, float lower_bound, float upper_bound) {
+    return value > lower_bound ? min(value, upper_bound) : lower_bound;
+}
+
 uint matrix_zone_value_code(float value) {
-    return uint(clamp(value, 0.0, 1.0) *
+    // Reject NaN before the float-to-uint conversion per the file-wide
+    // sanitizer contract: a NaN here is undefined in the uint domain.
+    return uint(sanitize_bounded(value, 0.0, 1.0) *
                 MATRIX_ZONE_VALUE_SCALE + 0.5);
 }
 
@@ -1208,8 +1215,15 @@ void reduce_average_partials(uint tid, float partial) {
     }
 }
 
+// Ordered-comparison sanitizer; see the metering intensity pass.
+float sanitize_bounded(float value, float lower_bound, float upper_bound) {
+    return value > lower_bound ? min(value, upper_bound) : lower_bound;
+}
+
 uint pq_to_uint(float value) {
-    return uint(clamp(value, 0.0, 1.0) * 4095.0 + 0.5);
+    // Reject NaN before the float-to-uint conversion per the file-wide
+    // sanitizer contract: a NaN here is undefined in the uint domain.
+    return uint(sanitize_bounded(value, 0.0, 1.0) * 4095.0 + 0.5);
 }
 
 // Detect only near-zero, internally uniform zones. Requiring the black
@@ -3609,7 +3623,18 @@ float histogram_bin_overlap(vec2 interval, uint index) {
     );
 }
 
+// Ordered-comparison sanitizer; see the metering intensity pass.
+float sanitize_bounded(float value, float lower_bound, float upper_bound) {
+    return value > lower_bound ? min(value, upper_bound) : lower_bound;
+}
+
 uvec2 histogram_interval_bounds(vec2 interval, uint bin_count) {
+    // Reject NaN before the float-to-uint conversion per the file-wide
+    // sanitizer contract: a NaN here is undefined in the uint domain.
+    interval = vec2(
+        sanitize_bounded(interval.x, 0.0, float(bin_count)),
+        sanitize_bounded(interval.y, 0.0, float(bin_count))
+    );
     return uvec2(
         min(uint(floor(interval.x)), bin_count - 1u),
         min(uint(ceil(interval.y)), bin_count)
