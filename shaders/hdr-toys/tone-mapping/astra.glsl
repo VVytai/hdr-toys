@@ -3294,8 +3294,17 @@ vec3 sanitize_absolute_rgb(vec3 rgb) {
         0.0,
         pw
     );
-    vec3 absolute_rgb = rgb * safe_reference_white;
-    return sanitize_bounded(absolute_rgb, 0.0, pw);
+    vec3 positive_rgb = sanitize_bounded(rgb, 0.0, pw);
+    // Reject NaN and negatives first, then clamp out-of-range input
+    // (effective luminance above the PQ mastering range, only reachable
+    // with non-PQ transfer formats) proportionally: a per-channel clamp
+    // collapses the largest component and shifts the hue, disagreeing with
+    // the vectorscope's hue-preserving form of the same policy.
+    float peak = max(max(positive_rgb.r, positive_rgb.g), positive_rgb.b);
+    float limit = pw / max(safe_reference_white, 1e-6);
+    if (peak > limit)
+        positive_rgb *= limit / peak;
+    return positive_rgb * safe_reference_white;
 }
 
 vec3 fetch_atlas_raw(ivec2 position) {
