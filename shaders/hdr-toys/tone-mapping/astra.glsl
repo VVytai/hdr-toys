@@ -206,12 +206,12 @@
 //!STORAGE
 
 //!BUFFER METADATA
-//!VAR float max_rgb
-//!VAR float min_i
+//!VAR float exposed_max_i
+//!VAR float exposed_min_i
 //!VAR float input_max_i
 //!VAR float input_min_i
 //!VAR float input_avg_i
-//!VAR float ev
+//!VAR float exposure_ev
 //!VAR float exposure_scale
 //!VAR float output_black_j
 //!VAR float output_white_j
@@ -2333,8 +2333,8 @@ bool automatic_exposure_enabled(MeteringMetrics metrics) {
 }
 
 void publish_metering_metadata(MeteringMetrics metrics) {
-    max_rgb = metrics.max_rgb;
-    min_i = metrics.minimum;
+    exposed_max_i = metrics.max_rgb;
+    exposed_min_i = metrics.minimum;
 }
 
 void publish_input_metering_metadata(MeteringMetrics metrics) {
@@ -2357,11 +2357,11 @@ void update_metering_metadata() {
     MeteringMetrics metrics = resolve_metering_metrics();
     publish_input_metering_metadata(metrics);
     float target_ev = resolve_exposure(metrics);
-    ev = stabilize_auto_exposure(
+    exposure_ev = stabilize_auto_exposure(
         target_ev,
         automatic_exposure_enabled(metrics)
     );
-    exposure_scale = exp2(ev);
+    exposure_scale = exp2(exposure_ev);
     apply_exposure_to_range(metrics, exposure_scale);
     publish_metering_metadata(metrics);
 }
@@ -2869,8 +2869,8 @@ float f(float x, float iw, float ib, float ow, float ob) {
 float evaluate_tone_curve(float x) {
     float ow = output_white_j;
     float ob = output_black_j;
-    float iw = I_to_J(iz_eotf_inv(pq_eotf(max_rgb)));
-    float ib = I_to_J(iz_eotf_inv(pq_eotf(min_i)));
+    float iw = I_to_J(iz_eotf_inv(pq_eotf(exposed_max_i)));
+    float ib = I_to_J(iz_eotf_inv(pq_eotf(exposed_min_i)));
 
     iw = max(iw, ow);
     ib = min(ib, ob);
@@ -4344,7 +4344,7 @@ vec4 draw_metrics_row(
         value = metered_matrix_blend;
         label = ivec3(CH_M, CH_I, CH_X);
     } else if (row == row_count - 1) {
-        value = ev;
+        value = exposure_ev;
     } else {
         // The EV row is always last. Any other unhandled row draws nothing,
         // so a future row insertion cannot silently relabel EV or duplicate
@@ -4406,7 +4406,7 @@ vec4 draw_metrics_panel(vec2 px) {
         pq_width = max(pq_width, pq_number_width(metered_histogram_average));
     if (show_matrix_metrics)
         pq_width = max(pq_width, pq_number_width(metered_matrix_average));
-    float scalar_width = number_width(ev);
+    float scalar_width = number_width(exposure_ev);
     if (show_matrix_metrics)
         scalar_width = max(scalar_width, number_width(metered_matrix_blend));
     float max_w = label_width + max(pq_width, scalar_width);
