@@ -2229,14 +2229,17 @@ void prepare_curve_temporal() {
 }
 
 float apply_exposure_to_pq(float value, float scale) {
-    float luminance = pq_eotf(value) * scale;
-    // Match the per-pixel LUT-coordinate path. Values above the PQ mastering
-    // range cannot reach tone mapping and would cross the J transform's pole.
-    // Deliberately caps the curve white point at 10000 nits even under
-    // positive exposure: content at the mastering peak maps to full output
-    // white instead of rolling off below an extrapolated white point.
-    luminance = sanitize_bounded(luminance, 0.0, pw);
-    return pq_eotf_inv(luminance);
+    // Compose with metadata_nits_to_pq instead of repeating the
+    // sanitize-then-convert chain: the two copies had already drifted (the
+    // helper guards non-positive input with 0.0, the old inline form leaked
+    // pq_eotf_inv(0) = 7.3e-7 into the published black point).
+    //
+    // The sanitize deliberately caps the curve white point at 10000 nits
+    // even under positive exposure: content at the mastering peak maps to
+    // full output white instead of rolling off below an extrapolated white
+    // point. Values above the PQ mastering range cannot reach tone mapping
+    // and would cross the J transform's pole.
+    return metadata_nits_to_pq(pq_eotf(value) * scale);
 }
 
 void apply_exposure_to_range(inout MeteringMetrics metrics, float scale) {
