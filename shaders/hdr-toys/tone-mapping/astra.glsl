@@ -1092,6 +1092,9 @@ void hook() { analyze_matrix_zone(); }
 //!COMPUTE 256 1 256 1
 //!DESC metering (statistics reduction)
 
+// One just-noticeable difference step on the PQ scale.
+const float JND = 1.0 / 720.0;
+
 // Histogram statistics.
 const uint METERING_HISTOGRAM_SIZE = 1024u;
 const uint METERING_REDUCTION_SIZE = 256u;
@@ -1113,17 +1116,17 @@ const uint METERING_ZONE_ROWS = 9u;
 const uint METERING_ZONE_COUNT = METERING_ZONE_COLUMNS * METERING_ZONE_ROWS;
 const float METERING_MATRIX_WEIGHT_MIN = 0.50;
 const float METERING_MATRIX_WEIGHT_MAX = 0.75;
-const float METERING_MATRIX_DIFFERENCE_MIN = 0.05;
-const float METERING_MATRIX_DIFFERENCE_MAX = 0.20;
+const float METERING_MATRIX_DIFFERENCE_MIN = 36 * JND;
+const float METERING_MATRIX_DIFFERENCE_MAX = 144 * JND;
 const float METERING_MATRIX_SPATIAL_SCALE = 3.0;
-const float METERING_MATRIX_SPREAD_MIN = 0.06;
-const float METERING_MATRIX_SPREAD_MAX = 0.30;
-const float METERING_MATRIX_COHERENCE_MIN = 0.03;
-const float METERING_MATRIX_COHERENCE_MAX = 0.18;
-const float METERING_BORDER_BLACK_MAX = 0.02;
+const float METERING_MATRIX_SPREAD_MIN = 43 * JND;
+const float METERING_MATRIX_SPREAD_MAX = 216 * JND;
+const float METERING_MATRIX_COHERENCE_MIN = 22 * JND;
+const float METERING_MATRIX_COHERENCE_MAX = 130 * JND;
+const float METERING_BORDER_BLACK_MAX = 14 * JND;
 const float METERING_BORDER_BLACK_RELATIVE_SCALE = 0.10;
-const float METERING_BORDER_SPREAD_MAX = 0.075;
-const float METERING_BORDER_GLOBAL_MIN = 0.02;
+const float METERING_BORDER_SPREAD_MAX = 54 * JND;
+const float METERING_BORDER_GLOBAL_MIN = 14 * JND;
 const float METERING_BORDER_OCCUPANCY_MIN = 0.80;
 const uint METERING_ACTIVE_COLUMNS_MIN = 4u;
 const uint METERING_ACTIVE_ROWS_MIN = 3u;
@@ -1619,6 +1622,9 @@ void hook() { reduce_metering_statistics(); }
 //!WHEN temporal_stable_duration 0.0 >
 //!DESC metering (temporal stabilization)
 
+// One just-noticeable difference step on the PQ scale.
+const float JND = 1.0 / 720.0;
+
 // Scene analysis is distribution-based. The current frame is compared both
 // with a slowly moving shot reference and with the immediately previous frame:
 // only an abrupt transition can start a cut candidate, so gradual ramps do not
@@ -1626,8 +1632,8 @@ void hook() { reduce_metering_statistics(); }
 
 const uint TEMPORAL_HISTOGRAM_SIZE = 64u;
 const uint TEMPORAL_HISTOGRAM_SAMPLE_COUNT = 512u * 288u;
-const float TEMPORAL_HISTOGRAM_CUT_THRESHOLD = 0.20;
-const float TEMPORAL_HISTOGRAM_FRAME_THRESHOLD = 0.10;
+const float TEMPORAL_HISTOGRAM_CUT_THRESHOLD = 144 * JND;
+const float TEMPORAL_HISTOGRAM_FRAME_THRESHOLD = 72 * JND;
 const float TEMPORAL_HISTOGRAM_TIME_SCALE = 0.50;
 const float TEMPORAL_SCENE_CONFIRM_TIME_SCALE = 0.25;
 const float TEMPORAL_SCENE_ADAPTATION_TIME_SCALE = 0.50;
@@ -3749,6 +3755,7 @@ void hook() {
 //!WHEN preview_metering
 //!DESC metering (preview)
 
+// One just-noticeable difference step on the PQ scale.
 const float JND = 1.0 / 720.0;
 
 float to_float(uint x) {
@@ -3823,7 +3830,7 @@ const float PREVIEW_VECTORSCOPE_AB_RANGE = 0.36;
 const float PREVIEW_VECTORSCOPE_COLOR_SCALE = 65535.0;
 const float PREVIEW_PANEL_GAP = 6.0 * SCALE;
 const uvec2 PREVIEW_MATRIX_SIZE = uvec2(16u, 9u);
-const float PREVIEW_MATRIX_DIFFERENCE_RANGE = 0.20;
+const float PREVIEW_MATRIX_DIFFERENCE_RANGE = 144 * JND;
 const float PREVIEW_MATRIX_WEIGHT_MAX = 4.0;
 
 // Overlay the actual matrix inputs and weights on their source regions. Blue
