@@ -3827,7 +3827,7 @@ const float MARGIN = 8.0;
 const float PAD = 2.0;
 const float SCALE = 4.0;
 const float LINE_H = CHAR_H + 2.0;
-const float PREVIEW_PANEL_GAP = 6.0 * SCALE;
+const float GAP = 6.0 * SCALE;
 
 // The preview histogram uses the same 64-bin grouping as scene-change
 // detection. Cyan bars are the current frame, the orange trace is the
@@ -4076,7 +4076,7 @@ vec4 draw_histogram(vec2 px) {
 vec4 draw_vectorscope(vec2 px) {
     vec2 origin = vec2(
         MARGIN * SCALE,
-        MARGIN * SCALE + PREVIEW_HISTOGRAM_EXTENT + PREVIEW_PANEL_GAP
+        MARGIN * SCALE + PREVIEW_HISTOGRAM_EXTENT + GAP
     );
     vec2 padding = vec2(PAD * SCALE);
     vec2 panel_min = origin - padding;
@@ -4389,10 +4389,10 @@ vec4 draw_metrics_panel(vec2 px) {
                         float(row_count - 1) * LINE_H * SCALE;
     float chart_stack_bottom = MARGIN * SCALE +
                                PREVIEW_HISTOGRAM_EXTENT +
-                               PREVIEW_PANEL_GAP +
+                               GAP +
                                PREVIEW_VECTORSCOPE_EXTENT + PAD * SCALE;
     float metrics_x = metrics_top - PAD * SCALE < chart_stack_bottom
-        ? MARGIN * SCALE + PREVIEW_VECTORSCOPE_EXTENT + PREVIEW_PANEL_GAP
+        ? MARGIN * SCALE + PREVIEW_VECTORSCOPE_EXTENT + GAP
         : MARGIN * SCALE;
     vec2 o0 = vec2(metrics_x, metrics_top);
     vec2 panel_min = o0 - vec2(PAD * SCALE);
