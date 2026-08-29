@@ -165,8 +165,8 @@
 0
 
 //!BUFFER METERED
-//!VAR uint metered_max_i
 //!VAR uint metered_max_rgb
+//!VAR uint metered_max_i
 //!VAR uint metered_min_i
 //!VAR uint metered_avg_i
 //!VAR uint metered_histogram[1024]
