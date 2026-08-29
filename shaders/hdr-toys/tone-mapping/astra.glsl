@@ -4154,12 +4154,24 @@ uint number_fixed_value(float value) {
     return uint(scaled);
 }
 
+// Two decimals plus the decimal point follow the integer digits, and a row
+// label is four characters including the colon. Keeping both in one place
+// prevents a format or label change from drifting between the width
+// estimate and the glyphs actually drawn.
+const float NUMBER_DECIMAL_CHARACTERS = 3.0;
+const float LABEL_CHARACTERS = 4.0;
+
+float number_advance(float characters) {
+    return characters * (CHAR_W + SPACING);
+}
+
 float number_width(float value) {
     uint int_part = number_fixed_value(value) / 100u;
     uint digits = integer_digit_count(int_part);
 
-    float characters = float(digits + 3u) + (value < 0.0 ? 1.0 : 0.0);
-    return characters * (CHAR_W + SPACING);
+    float characters = float(digits) + NUMBER_DECIMAL_CHARACTERS +
+                       (value < 0.0 ? 1.0 : 0.0);
+    return number_advance(characters);
 }
 
 float pq_number_width(float value) {
@@ -4172,7 +4184,7 @@ float pq_number_width(float value) {
         0.999999948
     );
     float digits = 1.0 + dot(step(digit_thresholds, vec4(value)), vec4(1.0));
-    return (digits + 3.0) * (CHAR_W + SPACING);
+    return number_advance(digits + NUMBER_DECIMAL_CHARACTERS);
 }
 
 uint decimal_divisor(uint position_from_right) {
@@ -4215,7 +4227,7 @@ int number_character(float value, int index) {
 // Draw a labeled row: "LABEL:value".
 vec4 draw_row(float value, vec2 origin, vec2 px, int c0, int c1, int c2) {
     float advance = CHAR_W + SPACING;
-    float label_width = 4.0 * advance;
+    float label_width = number_advance(LABEL_CHARACTERS);
     float width = label_width + number_width(value);
     vec2 local = (px - origin) / SCALE;
 
@@ -4289,7 +4301,9 @@ vec4 draw_metrics_row(
 
 vec4 draw_metrics_panel(vec2 px) {
     // The longest row contains four label characters and a signed 5.2 number.
-    const float MAX_ROW_WIDTH = 13.0 * (CHAR_W + SPACING);
+    const float MAX_ROW_WIDTH =
+        (LABEL_CHARACTERS + 1.0 + 5.0 + NUMBER_DECIMAL_CHARACTERS) *
+        (CHAR_W + SPACING);
     bool show_histogram_metrics = enable_metering > 1u;
     bool show_matrix_metrics = show_histogram_metrics &&
                                metered_zone_valid > 0u;
@@ -4323,7 +4337,7 @@ vec4 draw_metrics_panel(vec2 px) {
     if (outside_panel_bounds(px, panel_min, panel_max))
         return vec4(0.0);
 
-    float label_width = 4.0 * (CHAR_W + SPACING);
+    float label_width = number_advance(LABEL_CHARACTERS);
     float pq_width = max(
         max(pq_number_width(input_max_i), pq_number_width(input_min_i)),
         pq_number_width(input_avg_i)
