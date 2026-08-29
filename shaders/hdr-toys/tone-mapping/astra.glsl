@@ -435,6 +435,13 @@ vec4 hook() { return vec4(sample_metering_downscaled(), 0.0, 1.0); }
 //!DESC metering (spatial stabilization, blur, horizontal)
 
 // [Efficient Gaussian blur with linear sampling](https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/)
+//
+// The 16 blocks below (spatial_stable_iterations 0-7, horizontal+vertical)
+// are deliberate copies: each pass is a separate compilation unit, so the
+// kernel cannot be shared. Their WHEN thresholds must ascend by exactly one
+// and the offset/weight/direction constants must stay identical across all
+// blocks - a divergent edit silently changes the effective blur radius at
+// one iteration count and shifts the measured peak and exposure.
 
 const vec3 offset = vec3(0.0000000000, 1.3846153846, 3.2307692308);
 const vec3 weight = vec3(0.2270270270, 0.3162162162, 0.0702702703);
@@ -4195,9 +4202,11 @@ uint decimal_divisor(uint position_from_right) {
     return 1u;
 }
 
-// Resolve only the character covered by this fragment. Drawing every
-// character and compositing the results produced equivalent pixels, but its
-// repeated glyph lookups caused D3DCompiler's inliner to grow exponentially.
+// Resolve only the character covered by this fragment: each fragment pays
+// for one glyph lookup instead of a whole row, so the width estimation
+// cannot force per-pixel character loops. (Drawing every character and
+// compositing the results produced equivalent pixels, but its repeated
+// glyph lookups also caused D3DCompiler's inliner to grow exponentially.)
 int number_character(float value, int index) {
     bool negative = value < 0.0;
     uint fixed_value = number_fixed_value(value);
