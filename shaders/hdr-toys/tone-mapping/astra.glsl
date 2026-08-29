@@ -4435,14 +4435,11 @@ vec2 preview_metering_position(vec2 position) {
 vec4 render_metering_preview() {
     vec4 color = HOOKED_tex(HOOKED_pos);
     vec2 px = HOOKED_pos * HOOKED_size;
-    vec2 metering_position = preview_metering_position(HOOKED_pos);
-    float value = METERING_tex(metering_position).x;
+    vec2 mp = preview_metering_position(HOOKED_pos);
+    float value = METERING_tex(mp).x;
 
-    color.rgb = composite_preview_layer(
-        color.rgb,
-        draw_matrix_metering(metering_position)
-    );
     color.rgb = composite_preview_layer(color.rgb, draw_highlights(value));
+    color.rgb = composite_preview_layer(color.rgb, draw_matrix_metering(mp));
     color.rgb = composite_preview_layer(color.rgb, draw_histogram(px));
     color.rgb = composite_preview_layer(color.rgb, draw_vectorscope(px));
     color.rgb = composite_preview_layer(color.rgb, draw_metrics_panel(px));
