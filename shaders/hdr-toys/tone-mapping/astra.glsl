@@ -912,6 +912,19 @@ void hook() {
 //!WHEN auto_exposure_anchor 0 > preview_metering + enable_metering 1 > *
 //!DESC metering (matrix zones)
 
+// No metadata-absence conditions here, on either side. The max side rides
+// on this pass's METERING binding: the intensity-map pass gates itself off
+// whenever max_pq_y or scene_max is present, so this pass never runs while
+// peak metadata exists. The average side needs no condition because it can
+// never occur without the max side: max_pq_y/avg_pq_y are written only
+// together by libplacebo's peak detection (pl_get_detected_hdr_metadata
+// fills both from one buffer and writes nothing when the average is zero),
+// and scene_max/scene_avg both come from mandatory HDR10+ payload fields
+// (maxscl and average_maxrgb). An average-without-maximum state is not
+// representable in either source, so avg absence conditions here would
+// only ever be true in configurations the max conditions already gate
+// off.
+
 // A 256x144 analysis grid maps exactly to 16x9 workgroups. Each workgroup
 // builds a compact histogram for one image zone, then publishes a robust mean
 // and its P10-P90 spread for the matrix reduction below.
