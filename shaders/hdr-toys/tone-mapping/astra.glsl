@@ -206,10 +206,8 @@
 //!STORAGE
 
 //!BUFFER METADATA
-//!VAR float max_i
 //!VAR float max_rgb
 //!VAR float min_i
-//!VAR float avg_i
 //!VAR float input_max_i
 //!VAR float input_min_i
 //!VAR float input_avg_i
@@ -2258,10 +2256,8 @@ bool automatic_exposure_enabled(MeteringMetrics metrics) {
 }
 
 void publish_metering_metadata(MeteringMetrics metrics) {
-    max_i = metrics.maximum;
     max_rgb = metrics.max_rgb;
     min_i = metrics.minimum;
-    avg_i = metrics.average;
 }
 
 void publish_input_metering_metadata(MeteringMetrics metrics) {
