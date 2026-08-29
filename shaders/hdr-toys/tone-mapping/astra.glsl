@@ -1102,11 +1102,13 @@ const uint METERING_BINS_PER_THREAD = 4u;
 const uint METERING_COARSE_HISTOGRAM_SIZE = 64u;
 const uint METERING_BLOCKS_PER_COARSE_BIN = 4u;
 const uint METERING_SAMPLE_COUNT = 512u * 288u;
-const float METERING_BLACK_PERCENTILE = 0.005;
 
+// The percentile family: BLACK and WHITE locate the extrema histogram
+// positions and the average trim removes the same fraction from each tail.
 // A robust white point constrains automatic exposure without allowing one
 // unstable highlight sample to move the whole frame. The maximum RGB channel
 // is measured separately to define the tone-curve endpoint.
+const float METERING_BLACK_PERCENTILE = 0.005;
 const float METERING_WHITE_PERCENTILE = 0.995;
 const float METERING_AVERAGE_TRIM_PERCENTILE = 0.05;
 
@@ -1116,9 +1118,9 @@ const uint METERING_ZONE_ROWS = 9u;
 const uint METERING_ZONE_COUNT = METERING_ZONE_COLUMNS * METERING_ZONE_ROWS;
 const float METERING_MATRIX_WEIGHT_MIN = 0.50;
 const float METERING_MATRIX_WEIGHT_MAX = 0.75;
+const float METERING_MATRIX_SPATIAL_SCALE = 3.0;
 const float METERING_MATRIX_DIFFERENCE_MIN = 36 * JND;
 const float METERING_MATRIX_DIFFERENCE_MAX = 144 * JND;
-const float METERING_MATRIX_SPATIAL_SCALE = 3.0;
 const float METERING_MATRIX_SPREAD_MIN = 43 * JND;
 const float METERING_MATRIX_SPREAD_MAX = 216 * JND;
 const float METERING_MATRIX_COHERENCE_MIN = 22 * JND;
@@ -1919,6 +1921,9 @@ const float EXPOSURE_RISE_TIME_SCALE = 0.50;
 const float EXPOSURE_FALL_TIME_SCALE = 0.35;
 const float TEMPORAL_RAMP_MIN_TIME_CONSTANT = 1.0 / 240.0;
 const float EXPOSURE_PTS_EPSILON = 1e-6;
+
+// Fast-response window after a scene change: the duration scales the
+// stabilization interval and the time scale clamps the ramp.
 const float OUTPUT_TEMPORAL_SCENE_TIME_SCALE = 0.125;
 const float OUTPUT_TEMPORAL_SCENE_ADAPTATION_SCALE = 0.50;
 
@@ -3806,6 +3811,7 @@ const float MARGIN = 8.0;
 const float PAD = 2.0;
 const float SCALE = 4.0;
 const float LINE_H = CHAR_H + 2.0;
+const float PREVIEW_PANEL_GAP = 6.0 * SCALE;
 
 // The preview histogram uses the same 64-bin grouping as scene-change
 // detection. Cyan bars are the current frame, the orange trace is the
@@ -3814,8 +3820,6 @@ const float LINE_H = CHAR_H + 2.0;
 const uint PREVIEW_HISTOGRAM_SIZE = 64u;
 const float PREVIEW_HISTOGRAM_BIN_WIDTH = 4.0;
 const float PREVIEW_HISTOGRAM_EXTENT = 256.0;
-const uint PREVIEW_VECTORSCOPE_SIZE = 96u;
-const uint VECTORSCOPE_CHANNEL_COUNT = 4u;
 
 // The density reference is the fixed 128-bin display scale from the
 // historical calibration (the preview grid was 128 bins until it was
@@ -3824,11 +3828,13 @@ const uint VECTORSCOPE_CHANNEL_COUNT = 4u;
 // or brightening the trace. Deriving the reference from the current grid
 // size would cancel the grid out of the ratio and silently defeat that
 // invariance.
+const uint PREVIEW_VECTORSCOPE_SIZE = 96u;
+const uint VECTORSCOPE_CHANNEL_COUNT = 4u;
 const float PREVIEW_VECTORSCOPE_DENSITY_REFERENCE_SIZE = 128.0;
 const float PREVIEW_VECTORSCOPE_EXTENT = 256.0;
 const float PREVIEW_VECTORSCOPE_AB_RANGE = 0.36;
 const float PREVIEW_VECTORSCOPE_COLOR_SCALE = 65535.0;
-const float PREVIEW_PANEL_GAP = 6.0 * SCALE;
+
 const uvec2 PREVIEW_MATRIX_SIZE = uvec2(16u, 9u);
 const float PREVIEW_MATRIX_DIFFERENCE_RANGE = 144 * JND;
 const float PREVIEW_MATRIX_WEIGHT_MAX = 4.0;
