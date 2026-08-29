@@ -3761,7 +3761,16 @@ vec4 draw_highlights(float value) {
         to_float(metered_avg_i),
         to_float(metered_min_i)
     );
-    vec3 matches = 1.0 - step(vec3(5.0 * JND), abs(metrics - value));
+    // The extrema tints use directional bounds - the maximum marks every
+    // pixel at or above it, the minimum every pixel at or below - and
+    // carry a 5-JND approximation toward the midtones: the extrema metrics
+    // are percentile-bin edge codes, not per-pixel values, so a strict
+    // bound left the minimum side permanently empty.
+    vec3 matches = vec3(
+        step(metrics.x - 5.0 * JND, value),
+        1.0 - step(5.0 * JND, abs(metrics.y - value)),
+        step(value, metrics.z + 5.0 * JND)
+    );
 
     if (enable_metering <= 1)
         matches.y = 0.0;
