@@ -206,13 +206,13 @@
 //!STORAGE
 
 //!BUFFER METADATA
-//!VAR float exposed_max_i
-//!VAR float exposed_min_i
 //!VAR float input_max_i
 //!VAR float input_min_i
 //!VAR float input_avg_i
 //!VAR float exposure_ev
 //!VAR float exposure_scale
+//!VAR float exposed_max_i
+//!VAR float exposed_min_i
 //!VAR float output_black_j
 //!VAR float output_white_j
 //!STORAGE
