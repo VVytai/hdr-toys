@@ -3872,12 +3872,16 @@ vec4 draw_matrix_metering(vec2 position) {
     if (zone_weight <= 0.0) {
         if (min(edge_distance.x, edge_distance.y) < 1.0)
             return vec4(vec3(0.82), 0.55);
+        // Excluded cells stay filled: their content is presentation bars, so
+        // the fill hides nothing meaningful. The high-contrast stripes make
+        // the exclusion unmistakable. Anti-alias each edge over ~1 px so
+        // the 45-degree pixel staircase stays visually straight.
         vec2 oriented_px = clamped_position * oriented_size;
-        float hatch = step(
-            0.5,
-            fract((oriented_px.x + oriented_px.y) / 12.0)
-        );
-        return vec4(mix(vec3(0.04), vec3(0.18), hatch), 0.32);
+        float phase = fract((oriented_px.x + oriented_px.y) / 16.0);
+        float aa = 1.0 / 11.3137085;   // 1 px perpendicular to the stripe
+        float stripe = smoothstep(0.5 - aa, 0.5 + aa, phase) *
+                       (1.0 - smoothstep(1.0 - aa, 1.0, phase));
+        return vec4(mix(vec3(0.04), vec3(1.0), stripe), 0.80);
     }
 
     // Centered rectangle outline at 30% of the cell with a fixed width.
