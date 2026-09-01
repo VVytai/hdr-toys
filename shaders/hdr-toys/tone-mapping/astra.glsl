@@ -3489,8 +3489,17 @@ float sample_tone_curve_lut(float x) {
 }
 
 float chroma_correction_attenuation(float x, float rate, float threshold) {
-    float range = max(1.0 - threshold, 1e-6);
-    float norm = clamp((x - threshold) / range, 0.0, 1.0);
+    // Preserve the identity endpoint when threshold collapses the interval.
+    if (x >= 1.0)
+        return 1.0;
+    if (threshold >= 1.0)
+        return 0.0;
+
+    float norm = clamp(
+        (x - threshold) / (1.0 - threshold),
+        0.0,
+        1.0
+    );
     return pow(norm, 1.0 + rate * (1.0 - norm));
 }
 
