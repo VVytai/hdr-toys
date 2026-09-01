@@ -158,6 +158,12 @@
 //!MAXIMUM 2
 2
 
+//!PARAM force_metering
+//!TYPE uint
+//!MINIMUM 0
+//!MAXIMUM 1
+0
+
 //!PARAM preview_metering
 //!TYPE uint
 //!MINIMUM 0
@@ -231,13 +237,14 @@
 //!BIND HOOKED
 //!SAVE METERING
 //!COMPONENTS 2
-//!WHEN enable_metering 0 > max_pq_y 0 > ! * scene_max_r 0 > scene_max_g 0 > + scene_max_b 0 > + ! * preview_metering +
+//!WHEN enable_metering 0 > max_pq_y 0 > ! scene_max_r 0 > scene_max_g 0 > + scene_max_b 0 > + ! * force_metering + * preview_metering +
 //!DESC metering (intensity map)
 
 // The peak conditions above must stay aligned with resolve_metering_metrics'
 // has_pq_peak/has_scene_peak: both treat NaN and negative metadata as
 // absent, so the resolver never consumes METERED while this pass is gated
-// off. The two expressions cannot share code - change both sides together.
+// off, and force_metering waives the absence test identically on both
+// sides. The two expressions cannot share code - change both sides together.
 //
 // The alignment covers only the resolver: the histogram, statistics,
 // temporal, and preview passes consume METERING/METERED unconditionally,
@@ -914,8 +921,10 @@ void hook() {
 
 // No metadata-absence conditions here, on either side. The max side rides
 // on this pass's METERING binding: the intensity-map pass gates itself off
-// whenever max_pq_y or scene_max is present, so this pass never runs while
-// peak metadata exists. The average side needs no condition because it can
+// whenever max_pq_y or scene_max is present and force_metering is off, so
+// this pass never runs while peak metadata exists unless force_metering
+// keeps the metering chain active. The average side needs no condition
+// because it can
 // never occur without the max side: max_pq_y/avg_pq_y are written only
 // together by libplacebo's peak detection (pl_get_detected_hdr_metadata
 // fills both from one buffer and writes nothing when the average is zero),
@@ -2087,17 +2096,20 @@ MeteringMetrics resolve_metering_metrics() {
     // This must match the peak-metadata conditions on the intensity-map pass
     // (its WHEN header with the max_pq_y 0 > ! ... expression). Both sides
     // treat NaN and negative metadata as absent, so a skipped pass can never
-    // make the resolver consume stale METERED values. The two expressions
-    // cannot share code; any change to one side must update the other.
+    // make the resolver consume stale METERED values, and force_metering
+    // waives the absence test identically on both sides. The two
+    // expressions cannot share code; any change to one side must update the
+    // other.
     bool use_measured = enable_metering > 0 &&
-                        !has_pq_peak && !has_scene_peak;
+                        (force_metering > 0 ||
+                         (!has_pq_peak && !has_scene_peak));
 
-    if (has_pq_peak)
+    if (use_measured)
+        metrics.maximum = to_float(metered_max_i);
+    else if (has_pq_peak)
         metrics.maximum = pq_peak;
     else if (has_scene_peak)
         metrics.maximum = metadata_nits_to_pq(RGB_to_Y(scene_max_rgb));
-    else if (use_measured)
-        metrics.maximum = to_float(metered_max_i);
     else if (static_max_cll > 0.0)
         metrics.maximum = metadata_nits_to_pq(static_max_cll);
     else if (static_max_luma > 0.0)
@@ -2105,12 +2117,12 @@ MeteringMetrics resolve_metering_metrics() {
     else
         metrics.maximum = pq_eotf_inv(1000.0);
 
-    if (has_scene_peak)
+    if (use_measured)
+        metrics.max_rgb = uintBitsToFloat(metered_max_rgb);
+    else if (has_scene_peak)
         metrics.max_rgb = metadata_nits_to_pq(
             max(max(scene_max_rgb.r, scene_max_rgb.g), scene_max_rgb.b)
         );
-    else if (use_measured)
-        metrics.max_rgb = uintBitsToFloat(metered_max_rgb);
     else
         metrics.max_rgb = metrics.maximum;
 
@@ -2121,12 +2133,12 @@ MeteringMetrics resolve_metering_metrics() {
     else
         metrics.minimum = 0.0;
 
-    if (pq_average > 0.0)
+    if (use_measured && enable_metering > 1)
+        metrics.average = to_float(metered_avg_i);
+    else if (pq_average > 0.0)
         metrics.average = pq_average;
     else if (scene_average > 0.0)
         metrics.average = metadata_nits_to_pq(scene_average);
-    else if (use_measured && enable_metering > 1)
-        metrics.average = to_float(metered_avg_i);
     // MaxFALL is the static-metadata fallback for average luminance, but using
     // it as the exposure anchor produced poor results in practice.
     // else if (max_fall > 0.0)
@@ -2139,7 +2151,10 @@ MeteringMetrics resolve_metering_metrics() {
     // average clamp is not: it rewrites the metadata average into the
     // measured band in mixed metadata+measured configurations, and pins the
     // matrix-refined measured average inside the robust [minimum, maximum]
-    // band in pure measured configurations.
+    // band in pure measured configurations. force_metering at enable_metering
+    // 1 deliberately lands in the mixed configuration: the extrema come from
+    // measurement while the average (which level 1 does not measure) falls
+    // back to the metadata source.
     //
     // This is deliberate: without it, a mixed-path average above the
     // measured maximum would invert the negative exposure limit
