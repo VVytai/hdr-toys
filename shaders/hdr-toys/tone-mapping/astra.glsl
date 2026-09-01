@@ -1640,10 +1640,11 @@ void hook() { reduce_metering_statistics(); }
 // One just-noticeable difference step on the PQ scale.
 const float JND = 1.0 / 720.0;
 
-// Scene analysis is distribution-based. The current frame is compared both
-// with a slowly moving shot reference and with the immediately previous frame:
-// only an abrupt transition can start a cut candidate, so gradual ramps do not
-// become cuts merely because they eventually move far from the old reference.
+// Scene analysis uses one-dimensional Wasserstein distance on the 64-bin PQ
+// distributions. The current frame is compared both with a slowly moving shot
+// reference and with the immediately previous frame: only an abrupt transition
+// can start a cut candidate, so gradual ramps do not become cuts merely because
+// they eventually move far from the old reference.
 
 const uint TEMPORAL_HISTOGRAM_SIZE = 64u;
 const uint TEMPORAL_HISTOGRAM_SAMPLE_COUNT = 512u * 288u;
@@ -1723,13 +1724,42 @@ void temporal_initialize_frame() {
     temporal_frame_operation = TEMPORAL_FRAME_INITIALIZE;
 }
 
-vec2 temporal_measure_distance(uint index, float current) {
-    vec2 distance = vec2(
-        abs(current - metered_reference_histogram[index]),
-        abs(current - metered_previous_histogram[index])
+vec2 temporal_measure_distribution_delta(uint index, float current) {
+    vec2 delta = vec2(
+        current - metered_reference_histogram[index],
+        current - metered_previous_histogram[index]
     );
     metered_previous_histogram[index] = current;
-    return distance;
+    return delta;
+}
+
+void temporal_scan_distribution_delta(uint tid, vec2 delta) {
+    temporal_distance_partial[tid] = delta;
+    barrier();
+
+    // Inclusive Hillis-Steele scan. The barrier before each write keeps every
+    // read on the previous iteration's shared-memory snapshot.
+    for (uint offset = 1u;
+         offset < TEMPORAL_HISTOGRAM_SIZE;
+         offset <<= 1u) {
+        vec2 inclusive = temporal_distance_partial[tid];
+        if (tid >= offset)
+            inclusive += temporal_distance_partial[tid - offset];
+        barrier();
+        temporal_distance_partial[tid] = inclusive;
+        barrier();
+    }
+}
+
+vec2 temporal_cdf_distance(uint tid) {
+    // Both normalized CDFs end at total probability one, so their last
+    // inclusive difference is zero. Wasserstein-1 therefore integrates only
+    // the first 63 boundaries.
+    // Each uniform PQ bin spans 1/64 of the normalized code-value axis.
+    return tid + 1u < TEMPORAL_HISTOGRAM_SIZE
+        ? abs(temporal_distance_partial[tid]) /
+          float(TEMPORAL_HISTOGRAM_SIZE)
+        : vec2(0.0);
 }
 
 void temporal_reduce_distances(uint tid, vec2 distance) {
@@ -1899,14 +1929,13 @@ void analyze_metering_temporally() {
         return;
     }
 
-    vec2 distance = temporal_measure_distance(index, current);
+    vec2 delta = temporal_measure_distribution_delta(index, current);
+    temporal_scan_distribution_delta(index, delta);
+    vec2 distance = temporal_cdf_distance(index);
     temporal_reduce_distances(index, distance);
 
-    if (index == 0u) {
-        temporal_process_distances(
-            0.5 * temporal_distance_partial[0]
-        );
-    }
+    if (index == 0u)
+        temporal_process_distances(temporal_distance_partial[0]);
     barrier();
 
     temporal_update_reference_bin(index, current);
