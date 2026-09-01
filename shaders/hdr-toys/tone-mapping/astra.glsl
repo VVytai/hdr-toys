@@ -3853,7 +3853,7 @@ vec4 draw_highlights(float value) {
         step(value, metrics.z + 5.0 * JND)
     );
 
-    if (enable_metering <= 1)
+    if (!(enable_metering > 1))
         matches.y = 0.0;
 
     float opacity = 0.75 * max(max(matches.x, matches.y), matches.z);
