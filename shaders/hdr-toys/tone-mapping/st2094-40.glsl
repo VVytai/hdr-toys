@@ -52,6 +52,12 @@
 //!MAXIMUM 1000.0
 203.0
 
+//!PARAM contrast_ratio
+//!TYPE float
+//!MINIMUM 10.0
+//!MAXIMUM 100000000.0
+1000.0
+
 //!PARAM distribution_max_rgb
 //!TYPE float
 //!MINIMUM 0.0
@@ -473,7 +479,8 @@ vec2 chroma_correction(vec2 ctcp, float i1, float i2) {
 }
 
 // Match linear.glsl's perceptual black-point mapping: the source mastering
-// black is lifted to a 1000:1 display black while the mapped peak is fixed.
+// black is lifted to the configured display black while the mapped peak is
+// fixed.
 float black_point_compensation(float i, float source_peak) {
     float minimum_s = clamp(get_source_minimum() / source_peak, 0.0, 1.0);
     float mapped_minimum = tone_mapping_curve(minimum_s, source_peak)
@@ -481,7 +488,7 @@ float black_point_compensation(float i, float source_peak) {
     float mapped_peak = tone_mapping_curve(1.0, source_peak) * reference_white;
 
     float ib = pq_eotf_inv(mapped_minimum);
-    float ob = pq_eotf_inv(reference_white / 1000.0);
+    float ob = pq_eotf_inv(reference_white / contrast_ratio);
     float iw = pq_eotf_inv(mapped_peak);
     ib = min(ib, iw - epsilon);
 

@@ -50,6 +50,12 @@
 //!DESC HdrReferenceWhite in cd/m2
 203.0
 
+//!PARAM contrast_ratio
+//!TYPE float
+//!MINIMUM 10.0
+//!MAXIMUM 100000000.0
+1000.0
+
 //!PARAM baseline_hdr_headroom
 //!TYPE float
 //!MINIMUM -1.0
@@ -353,7 +359,8 @@ float reference_white_gain(
 }
 
 // Match linear.glsl's perceptual black-point mapping: the tone-mapped source
-// black is lifted to a 1000:1 display black while the mapped peak is fixed.
+// black is lifted to the configured display black while the mapped peak is
+// fixed.
 float black_point_compensation(
     float i,
     float baseline_headroom,
@@ -371,7 +378,7 @@ float black_point_compensation(
     float mapped_peak = exp2(target) * reference_white;
 
     float ib = pq_eotf_inv(mapped_minimum);
-    float ob = pq_eotf_inv(reference_white / 1000.0);
+    float ob = pq_eotf_inv(reference_white / contrast_ratio);
     float iw = pq_eotf_inv(mapped_peak);
     ib = min(ib, iw - epsilon);
 

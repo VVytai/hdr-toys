@@ -14,6 +14,12 @@ exposure
 //!MAXIMUM 1000.0
 203.0
 
+//!PARAM contrast_ratio
+//!TYPE float
+//!MINIMUM 10.0
+//!MAXIMUM 100000000.0
+1000.0
+
 //!HOOK OUTPUT
 //!BIND HOOKED
 //!WHEN mode luminance =
@@ -145,7 +151,7 @@ vec4 hook() {
     float l3 =  2000.0;
     float l2 =  1000.0;
     float l1 = reference_white;
-    float l0 = reference_white / 1000.0;
+    float l0 = reference_white / contrast_ratio;
     float lb = 0.0;
 
     vec3 cw = vec3(0.99500, 0.00, radians(000.0));

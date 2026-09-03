@@ -36,6 +36,12 @@
 //!MAXIMUM 1000.0
 203.0
 
+//!PARAM contrast_ratio
+//!TYPE float
+//!MINIMUM 10.0
+//!MAXIMUM 100000000.0
+1000.0
+
 //!PARAM chroma_correction_scaling
 //!TYPE float
 //!MINIMUM 0.0
@@ -215,7 +221,7 @@ float f(float x, float iw, float ib, float ow, float ob) {
 
 float curve(float x) {
     float ow = pq_eotf_inv(reference_white);
-    float ob = pq_eotf_inv(reference_white / 1000.0);
+    float ob = pq_eotf_inv(reference_white / contrast_ratio);
     float iw = max(get_max_i(), ow + 1e-3);
     float ib = min(get_min_i(), ob - 1e-3);
     return f(x, iw, ib, ow, ob);
@@ -366,7 +372,7 @@ float f(float x, float iw, float ib, float ow, float ob) {
 
 float curve(float x) {
     float ow = pq_eotf_inv(reference_white);
-    float ob = pq_eotf_inv(reference_white / 1000.0);
+    float ob = pq_eotf_inv(reference_white / contrast_ratio);
     float iw = max(get_max_i(), ow + 1e-3);
     float ib = min(get_min_i(), ob - 1e-3);
     return f(x, iw, ib, ow, ob);
@@ -497,7 +503,7 @@ float f(float x, float iw, float ib, float ow, float ob) {
 
 float curve(float x) {
     float ow = pq_eotf_inv(reference_white);
-    float ob = pq_eotf_inv(reference_white / 1000.0);
+    float ob = pq_eotf_inv(reference_white / contrast_ratio);
     float iw = max(get_max_i(), ow + 1e-3);
     float ib = min(get_min_i(), ob - 1e-3);
     return f(x, iw, ib, ow, ob);
@@ -618,7 +624,7 @@ float f(float x, float iw, float ib, float ow, float ob) {
 
 float curve(float x) {
     float ow = pq_eotf_inv(reference_white);
-    float ob = pq_eotf_inv(reference_white / 1000.0);
+    float ob = pq_eotf_inv(reference_white / contrast_ratio);
     float iw = max(get_max_i(), ow + 1e-3);
     float ib = min(get_min_i(), ob - 1e-3);
     return f(x, iw, ib, ow, ob);
@@ -743,7 +749,7 @@ float f(float x, float iw, float ib, float ow, float ob) {
 
 float curve(float x) {
     float ow = pq_eotf_inv(reference_white);
-    float ob = pq_eotf_inv(reference_white / 1000.0);
+    float ob = pq_eotf_inv(reference_white / contrast_ratio);
     float iw = max(get_max_i(), ow + 1e-3);
     float ib = min(get_min_i(), ob - 1e-3);
     return f(x, iw, ib, ow, ob);
