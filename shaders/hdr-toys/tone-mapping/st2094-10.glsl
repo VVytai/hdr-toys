@@ -108,7 +108,7 @@ vec4 hook() {
     vec4 color = HOOKED_tex(HOOKED_pos);
     float l = dot(color.rgb, y_coef);
     float l_abs = l * reference_white;
-    float i = pq_eotf_inv(l);
+    float i = pq_eotf_inv(l_abs);
     return vec4(i, vec3(0.0));
 }
 
