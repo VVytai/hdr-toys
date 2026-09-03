@@ -421,14 +421,14 @@ vec3 gamut_adjustment(vec3 f) {
     return gamut_adjustment(f, chroma_compensation_weight, saturation_gain);
 }
 
-vec3 detail_managenment(vec3 p, float t) {
+vec3 detail_management(vec3 p, float t) {
     // TODO: do what?
     vec3 q =  p;
     return p * (1.0 - t) + q * t;
 }
 
-vec3 detail_managenment(vec3 p) {
-    return detail_managenment(p, tone_detail_factor);
+vec3 detail_management(vec3 p) {
+    return detail_management(p, tone_detail_factor);
 }
 
 vec4 hook() {
@@ -438,7 +438,7 @@ vec4 hook() {
     color.rgb = tone_mapping(color.rgb);
     color.rgb = ICtCp_to_RGB(color.rgb);
     color.rgb = gamut_adjustment(color.rgb);
-    color.rgb = detail_managenment(color.rgb);
+    color.rgb = detail_management(color.rgb);
 
     return color;
 }
