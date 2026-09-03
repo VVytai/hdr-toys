@@ -9,7 +9,7 @@
 
 //!PARAM contrast_ratio
 //!TYPE float
-//!MINIMUM 10.0
+//!MINIMUM 0.0
 //!MAXIMUM 100000000.0
 1000.0
 
@@ -334,7 +334,7 @@ vec4 hook() {
     color.rgb = f_scale(
         color.rgb,
         0.0,
-        1.0 / contrast_ratio,
+        contrast_ratio > 0.0 ? 1.0 / contrast_ratio : 0.0,
         1019.0 / 940.0,
         1.0
     );

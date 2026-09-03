@@ -49,7 +49,7 @@
 
 //!PARAM contrast_ratio
 //!TYPE float
-//!MINIMUM 10.0
+//!MINIMUM 0.0
 //!MAXIMUM 100000000.0
 1000.0
 
@@ -399,7 +399,7 @@ float f(float x, float iw, float ib, float ow, float ob, float adapt) {
 
 float curve(float x) {
     float ow = 1.0;
-    float ob = 1.0 / contrast_ratio;
+    float ob = contrast_ratio > 0.0 ? 1.0 / contrast_ratio : 0.0;
     float iw = max(get_max_l() / reference_white, ow + 1e-3);
     float ib = min(get_min_l() / reference_white, ob - 1e-3);
     float avg = get_avg_l() / reference_white;

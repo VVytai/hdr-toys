@@ -16,7 +16,7 @@ exposure
 
 //!PARAM contrast_ratio
 //!TYPE float
-//!MINIMUM 10.0
+//!MINIMUM 0.0
 //!MAXIMUM 100000000.0
 1000.0
 
@@ -151,7 +151,7 @@ vec4 hook() {
     float l3 =  2000.0;
     float l2 =  1000.0;
     float l1 = reference_white;
-    float l0 = reference_white / contrast_ratio;
+    float l0 = contrast_ratio > 0.0 ? reference_white / contrast_ratio : 0.0;
     float lb = 0.0;
 
     vec3 cw = vec3(0.99500, 0.00, radians(000.0));

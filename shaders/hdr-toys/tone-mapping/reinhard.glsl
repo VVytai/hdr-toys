@@ -33,7 +33,7 @@
 
 //!PARAM contrast_ratio
 //!TYPE float
-//!MINIMUM 10.0
+//!MINIMUM 0.0
 //!MAXIMUM 100000000.0
 1000.0
 
@@ -193,7 +193,8 @@ float f(float x, float w) {
 float curve(float x) {
     float w = get_max_l();
     float y = f(x, w);
-    float y_scaled = f_scale(y, 0.0, 1.0 / contrast_ratio, 1.0, 1.0);
+    float ob = contrast_ratio > 0.0 ? 1.0 / contrast_ratio : 0.0;
+    float y_scaled = f_scale(y, 0.0, ob, 1.0, 1.0);
     return y_scaled;
 }
 

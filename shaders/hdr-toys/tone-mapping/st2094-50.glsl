@@ -52,8 +52,9 @@
 
 //!PARAM contrast_ratio
 //!TYPE float
-//!MINIMUM 10.0
+//!MINIMUM 0.0
 //!MAXIMUM 100000000.0
+//!DESC Zero selects infinite contrast
 1000.0
 
 //!PARAM baseline_hdr_headroom
@@ -378,7 +379,9 @@ float black_point_compensation(
     float mapped_peak = exp2(target) * reference_white;
 
     float ib = pq_eotf_inv(mapped_minimum);
-    float ob = pq_eotf_inv(reference_white / contrast_ratio);
+    float ob = pq_eotf_inv(
+        contrast_ratio > 0.0 ? reference_white / contrast_ratio : 0.0
+    );
     float iw = pq_eotf_inv(mapped_peak);
     ib = min(ib, iw - epsilon);
 
