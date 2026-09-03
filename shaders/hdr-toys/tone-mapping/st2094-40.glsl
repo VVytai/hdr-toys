@@ -10,6 +10,10 @@
 // with glsl-shader-opts to apply a metadata curve directly. Raw KneePoint
 // values are divided by 4095 and raw BezierCurveAnchors values by 1023.
 
+//!PARAM min_luma
+//!TYPE float
+0.0
+
 //!PARAM max_luma
 //!TYPE float
 0.0
@@ -309,6 +313,13 @@ float get_source_peak() {
     return 1000.0;
 }
 
+float get_source_minimum() {
+    if (min_luma > 0.0)
+        return min_luma;
+
+    return 0.001;
+}
+
 float get_source_average() {
     if (scene_avg > 0.0)
         return scene_avg;
@@ -461,6 +472,22 @@ vec2 chroma_correction(vec2 ctcp, float i1, float i2) {
     return ctcp * mix(1.0, min(r1, r2), chroma_correction_scaling);
 }
 
+// Match linear.glsl's perceptual black-point mapping: the source mastering
+// black is lifted to a 1000:1 display black while the mapped peak is fixed.
+float black_point_compensation(float i, float source_peak) {
+    float minimum_s = clamp(get_source_minimum() / source_peak, 0.0, 1.0);
+    float mapped_minimum = tone_mapping_curve(minimum_s, source_peak)
+        * reference_white;
+    float mapped_peak = tone_mapping_curve(1.0, source_peak) * reference_white;
+
+    float ib = pq_eotf_inv(mapped_minimum);
+    float ob = pq_eotf_inv(reference_white / 1000.0);
+    float iw = pq_eotf_inv(mapped_peak);
+    ib = min(ib, iw - epsilon);
+
+    return ob + (i - ib) * (iw - ob) / (iw - ib);
+}
+
 // Apply the ST 2094-40 scalar curve to ICtCp intensity. This is intentionally
 // different from the maxRGB application described in Annex B.4.
 vec3 tone_mapping(vec3 ictcp, float source_peak) {
@@ -468,6 +495,7 @@ vec3 tone_mapping(vec3 ictcp, float source_peak) {
     float s = clamp(source_i / source_peak, 0.0, 1.0);
     float mapped_i = tone_mapping_curve(s, source_peak) * reference_white;
     float i2 = pq_eotf_inv(mapped_i);
+    i2 = black_point_compensation(i2, source_peak);
     vec2 ctcp2 = chroma_correction(ictcp.yz, ictcp.x, i2);
     return vec3(i2, ctcp2);
 }
