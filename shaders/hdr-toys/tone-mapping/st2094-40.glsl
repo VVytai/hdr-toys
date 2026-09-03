@@ -198,8 +198,110 @@
 //!DESC ICtCp chroma correction strength
 1.0
 
+//!BUFFER METERED
+//!VAR float metered_avg_i
+//!STORAGE
+
 //!HOOK OUTPUT
 //!BIND HOOKED
+//!SAVE AVG
+//!COMPONENTS 1
+//!WIDTH 128
+//!HEIGHT 128
+//!WHEN use_metadata_curve 0 = avg_pq_y 0 = * scene_avg 0 = *
+//!DESC tone mapping (st2094-40, average, 128)
+
+const vec3 y_coef = vec3(0.2627002120112671, 0.6779980715188708, 0.05930171646986196);
+
+const float m1 = 2610.0 / 4096.0 / 4.0;
+const float m2 = 2523.0 / 4096.0 * 128.0;
+const float c1 = 3424.0 / 4096.0;
+const float c2 = 2413.0 / 4096.0 * 32.0;
+const float c3 = 2392.0 / 4096.0 * 32.0;
+const float pw = 10000.0;
+
+float pq_eotf_inv(float x) {
+    float t = pow(max(x, 0.0) / pw, m1);
+    return pow((c1 + c2 * t) / (1.0 + c3 * t), m2);
+}
+
+vec4 hook() {
+    vec4 color = HOOKED_tex(HOOKED_pos);
+    float l = dot(color.rgb, y_coef) * reference_white;
+    return vec4(pq_eotf_inv(l), vec3(0.0));
+}
+
+//!HOOK OUTPUT
+//!BIND AVG
+//!SAVE AVG
+//!WIDTH AVG.w 2 /
+//!HEIGHT AVG.h 2 /
+//!WHEN use_metadata_curve 0 = avg_pq_y 0 = * scene_avg 0 = *
+//!DESC tone mapping (st2094-40, average, 64)
+vec4 hook() { return AVG_tex(AVG_pos); }
+
+//!HOOK OUTPUT
+//!BIND AVG
+//!SAVE AVG
+//!WIDTH AVG.w 2 /
+//!HEIGHT AVG.h 2 /
+//!WHEN use_metadata_curve 0 = avg_pq_y 0 = * scene_avg 0 = *
+//!DESC tone mapping (st2094-40, average, 32)
+vec4 hook() { return AVG_tex(AVG_pos); }
+
+//!HOOK OUTPUT
+//!BIND AVG
+//!SAVE AVG
+//!WIDTH AVG.w 2 /
+//!HEIGHT AVG.h 2 /
+//!WHEN use_metadata_curve 0 = avg_pq_y 0 = * scene_avg 0 = *
+//!DESC tone mapping (st2094-40, average, 16)
+vec4 hook() { return AVG_tex(AVG_pos); }
+
+//!HOOK OUTPUT
+//!BIND AVG
+//!SAVE AVG
+//!WIDTH AVG.w 2 /
+//!HEIGHT AVG.h 2 /
+//!WHEN use_metadata_curve 0 = avg_pq_y 0 = * scene_avg 0 = *
+//!DESC tone mapping (st2094-40, average, 8)
+vec4 hook() { return AVG_tex(AVG_pos); }
+
+//!HOOK OUTPUT
+//!BIND AVG
+//!SAVE AVG
+//!WIDTH AVG.w 2 /
+//!HEIGHT AVG.h 2 /
+//!WHEN use_metadata_curve 0 = avg_pq_y 0 = * scene_avg 0 = *
+//!DESC tone mapping (st2094-40, average, 4)
+vec4 hook() { return AVG_tex(AVG_pos); }
+
+//!HOOK OUTPUT
+//!BIND AVG
+//!SAVE AVG
+//!WIDTH AVG.w 2 /
+//!HEIGHT AVG.h 2 /
+//!WHEN use_metadata_curve 0 = avg_pq_y 0 = * scene_avg 0 = *
+//!DESC tone mapping (st2094-40, average, 2)
+vec4 hook() { return AVG_tex(AVG_pos); }
+
+//!HOOK OUTPUT
+//!BIND AVG
+//!BIND METERED
+//!SAVE AVG
+//!WIDTH 1
+//!HEIGHT 1
+//!COMPUTE 1 1
+//!WHEN use_metadata_curve 0 = avg_pq_y 0 = * scene_avg 0 = *
+//!DESC tone mapping (st2094-40, average, 1)
+
+void hook() {
+    metered_avg_i = AVG_tex(AVG_pos).x;
+}
+
+//!HOOK OUTPUT
+//!BIND HOOKED
+//!BIND METERED
 //!DESC tone mapping (st2094-40)
 
 const float pq_m1 = 2610.0 / 4096.0 / 4.0;
@@ -333,6 +435,9 @@ float get_source_average() {
 
     if (avg_pq_y > 0.0)
         return pq_eotf(avg_pq_y);
+
+    if (metered_avg_i > 0.0)
+        return pq_eotf(clamp(metered_avg_i, 0.1, 0.5));
 
     // MaxFALL is the maximum frame-average level of the whole stream, not
     // the average of the current scene. Using it here systematically places
