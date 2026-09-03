@@ -85,10 +85,10 @@
 //!BIND HOOKED
 //!SAVE AVG
 //!COMPONENTS 1
-//!WIDTH 1024
-//!HEIGHT 1024
+//!WIDTH 128
+//!HEIGHT 128
 //!WHEN avg_pq_y 0 = scene_avg 0 = *
-//!DESC tone mapping (st2094-10, average, 1024)
+//!DESC tone mapping (st2094-10, average, 128)
 
 const vec3 y_coef = vec3(0.2627002120112671, 0.6779980715188708, 0.05930171646986196);
 
@@ -111,33 +111,6 @@ vec4 hook() {
     float i = pq_eotf_inv(l_abs);
     return vec4(i, vec3(0.0));
 }
-
-//!HOOK OUTPUT
-//!BIND AVG
-//!SAVE AVG
-//!WIDTH AVG.w 2 /
-//!HEIGHT AVG.h 2 /
-//!WHEN avg_pq_y 0 = scene_avg 0 = *
-//!DESC tone mapping (st2094-10, average, 512)
-vec4 hook() { return AVG_tex(AVG_pos); }
-
-//!HOOK OUTPUT
-//!BIND AVG
-//!SAVE AVG
-//!WIDTH AVG.w 2 /
-//!HEIGHT AVG.h 2 /
-//!WHEN avg_pq_y 0 = scene_avg 0 = *
-//!DESC tone mapping (st2094-10, average, 256)
-vec4 hook() { return AVG_tex(AVG_pos); }
-
-//!HOOK OUTPUT
-//!BIND AVG
-//!SAVE AVG
-//!WIDTH AVG.w 2 /
-//!HEIGHT AVG.h 2 /
-//!WHEN avg_pq_y 0 = scene_avg 0 = *
-//!DESC tone mapping (st2094-10, average, 128)
-vec4 hook() { return AVG_tex(AVG_pos); }
 
 //!HOOK OUTPUT
 //!BIND AVG
