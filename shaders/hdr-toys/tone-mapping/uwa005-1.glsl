@@ -879,11 +879,13 @@ CubicSpline build_low_spline(
         || metadata_low;
 
     default_toe(average_value, toe_end, toe_slope);
-    toe_offset = 0.0;
+    // Preserve the base curve's target black through the toe.  Anchoring the
+    // toe at zero would otherwise cancel contrast_ratio at exactly x = 0.
+    toe_offset = max(curve.b, 0.0);
     if (metadata_low) {
         toe_end = spline_1_th;
         toe_slope = spline_1_mb;
-        toe_offset = spline_1_base_offset;
+        toe_offset = max(spline_1_base_offset, toe_offset);
     }
 
     if (adapt_metadata_curve(target_max)) {
