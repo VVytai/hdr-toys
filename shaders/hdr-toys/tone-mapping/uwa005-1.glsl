@@ -1,10 +1,11 @@
 // T/UWA 005.1-2024 (V1.3) HDR Vivid display adaptation
 //
-// Implements the single-window HDR and SDR display-adaptation processes in
-// Clauses 9 and 10: the PQ-domain maxRGB base curve, the linear/cubic spline
-// transitions, maxRGB gain application in absolute linear BT.2020, and the
-// optional YCbCr colour-saturation correction. Clause 10.4 transfer encoding
-// is left to the transfer-function shader that follows this file.
+// Implements the single-window HDR and SDR curve construction in Clauses 9
+// and 10: the PQ-domain base curve, linear/cubic spline transitions, and the
+// optional YCbCr colour-saturation correction. The resulting scalar curve is
+// deliberately applied to ICtCp I instead of the standard's maxRGB gain, with
+// Ct/Cp correction for the intensity change. Clause 10.4 transfer encoding is
+// left to the transfer-function shader that follows this file.
 //
 // mpv exposes HDR Vivid frame side data to neither user-shader parameters nor
 // textures. Set use_metadata_statistics/use_metadata_curve and supply decoded
@@ -312,6 +313,13 @@
 //!DESC Two to the low two bits of color_saturation_enable_gain[1]
 1.0
 
+//!PARAM chroma_correction_scaling
+//!TYPE float
+//!MINIMUM 0.0
+//!MAXIMUM 1.0
+//!DESC ICtCp Ct/Cp correction strength
+1.0
+
 //!BUFFER UWA_METERED
 //!VAR float metered_average_maxrgb
 //!STORAGE
@@ -462,6 +470,80 @@ vec3 pq_eotf(vec3 x) {
 
 vec3 pq_eotf_inv(vec3 x) {
     return vec3(pq_eotf_inv(x.r), pq_eotf_inv(x.g), pq_eotf_inv(x.b));
+}
+
+vec3 RGB_to_XYZ(vec3 rgb) {
+    return rgb * mat3(
+        0.6369580483012914, 0.14461690358620832,  0.1688809751641721,
+        0.2627002120112671, 0.6779980715188708,   0.05930171646986196,
+        0.0,                0.028072693049087428, 1.060985057710791
+    );
+}
+
+vec3 XYZ_to_RGB(vec3 xyz) {
+    return xyz * mat3(
+         1.716651187971268, -0.355670783776392, -0.25336628137366,
+        -0.666684351832489,  1.616481236634939,  0.0157685458139111,
+         0.017639857445311, -0.042770613257809,  0.942103121235474
+    );
+}
+
+vec3 XYZ_to_LMS(vec3 xyz) {
+    return xyz * mat3(
+         0.3592832590121217,  0.6976051147779502, -0.0358915932320290,
+        -0.1920808463704993,  1.1004767970374321,  0.0753748658519118,
+         0.0070797844607479,  0.0748396662186362,  0.8433265453898765
+    );
+}
+
+vec3 LMS_to_XYZ(vec3 lms) {
+    return lms * mat3(
+         2.0701522183894223, -1.3263473389671563,  0.2066510476294053,
+         0.3647385209748072,  0.6805660249472273, -0.0453045459220347,
+        -0.0497472075358123, -0.0492609666966131,  1.1880659249923042
+    );
+}
+
+vec3 LMS_to_ICtCp(vec3 lms) {
+    return lms * mat3(
+         2048.0 / 4096.0,   2048.0 / 4096.0,    0.0 / 4096.0,
+         6610.0 / 4096.0, -13613.0 / 4096.0, 7003.0 / 4096.0,
+        17933.0 / 4096.0, -17390.0 / 4096.0, -543.0 / 4096.0
+    );
+}
+
+vec3 ICtCp_to_LMS(vec3 ictcp) {
+    return ictcp * mat3(
+        1.0,  0.0086090370379328,  0.1110296250030260,
+        1.0, -0.0086090370379328, -0.1110296250030260,
+        1.0,  0.5600313357106791, -0.3206271749873189
+    );
+}
+
+vec3 RGB_to_ICtCp(vec3 color) {
+    color *= reference_white;
+    color = RGB_to_XYZ(color);
+    color = XYZ_to_LMS(color);
+    color = pq_eotf_inv(color);
+    return LMS_to_ICtCp(color);
+}
+
+vec3 ICtCp_to_RGB(vec3 color) {
+    color = ICtCp_to_LMS(color);
+    color = pq_eotf(color);
+    color = LMS_to_XYZ(color);
+    color = XYZ_to_RGB(color);
+    return color / reference_white;
+}
+
+vec2 chroma_correction(vec2 ctcp, float source_i, float mapped_i) {
+    float compression = min(
+        source_i / max(mapped_i, epsilon),
+        mapped_i / max(source_i, epsilon)
+    );
+    return ctcp * mix(
+        1.0, clamp(compression, 0.0, 1.0), chroma_correction_scaling
+    );
 }
 
 float metadata_target(float target_max) {
@@ -1012,18 +1094,19 @@ vec4 hook() {
     ToneCurve tone = build_tone_curve(
         target_min, target_max, max_lum, average_value
     );
-    float mapped_max_pq = tone_curve_value(source_max_pq, tone);
-    float mapped_max = pq_eotf(mapped_max_pq);
 
-    vec3 mapped;
-    if (source_max > epsilon) {
-        mapped = source * (mapped_max / source_max);
-    } else {
-        mapped = vec3(0.0);
-    }
+    vec3 ictcp = RGB_to_ICtCp(color.rgb);
+    float source_i = ictcp.x;
+    float mapped_i = clamp(tone_curve_value(source_i, tone), 0.0, 1.0);
+    ictcp.yz = chroma_correction(ictcp.yz, source_i, mapped_i);
+    ictcp.x = mapped_i;
+    vec3 mapped = ICtCp_to_RGB(ictcp) * reference_white;
 
     if (color_saturation_enable != 0u) {
-        vec3 mapped_pq = pq_eotf_inv(mapped);
+        vec3 mapped_pq = pq_eotf_inv(max(mapped, 0.0));
+        float mapped_max_pq = max(
+            max(mapped_pq.r, mapped_pq.g), mapped_pq.b
+        );
         vec3 ycbcr = RGB_to_YCbCr(mapped_pq);
         float scale = saturation_scale(
             source_max_pq, mapped_max_pq, target_max, tone
