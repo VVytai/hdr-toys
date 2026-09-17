@@ -304,22 +304,19 @@ float sanitize_bounded(float value, float lower_bound, float upper_bound) {
     return value > lower_bound ? min(value, upper_bound) : lower_bound;
 }
 
+// Encode reference-white-relative linear light as normalized PQ.
+float metering_code(float relative) {
+    return pq_eotf_inv(
+        sanitize_bounded(relative * reference_white, 0.0, pw)
+    );
+}
+
 float metering_intensity(vec3 rgb) {
-    float y = RGB_to_Y(rgb);
-    // The ordered comparison rejects NaN as well as non-positive values
-    // before the fractional PQ power can turn -0.0 into NaN.
-    float y_abs = sanitize_bounded(y * reference_white, 0.0, pw);
-    return pq_eotf_inv(y_abs);
+    return metering_code(RGB_to_Y(rgb));
 }
 
 float metering_max_rgb(vec3 rgb) {
-    float maximum = max(max(rgb.r, rgb.g), rgb.b);
-    float maximum_abs = sanitize_bounded(
-        maximum * reference_white,
-        0.0,
-        pw
-    );
-    return pq_eotf_inv(maximum_abs);
+    return metering_code(max(max(rgb.r, rgb.g), rgb.b));
 }
 
 // METERING is a 2-component texture: .x carries the metering intensity,
