@@ -1120,26 +1120,31 @@ bool matrix_zone_looks_like_border(uint index) {
            metered_zone_spread[index] <= METERING_BORDER_SPREAD_MAX;
 }
 
-float matrix_column_black_fraction(uint x) {
+// The fraction of a run of zones that look like presentation bars. A column is
+// the same run read with the grid's width as the stride, which is why one
+// counter serves both.
+float border_fraction(uint first, uint stride, uint extent) {
     uint count = 0u;
-    for (uint y = 0u; y < MATRIX_ZONE_ROWS; y++) {
-        uint index = y * MATRIX_ZONE_COLUMNS + x;
-        if (matrix_zone_looks_like_border(index)) {
+
+    for (uint i = 0u; i < extent; i++) {
+        if (matrix_zone_looks_like_border(first + i * stride)) {
             count++;
         }
     }
-    return float(count) / float(MATRIX_ZONE_ROWS);
+
+    return float(count) / float(max(extent, 1u));
+}
+
+float matrix_column_black_fraction(uint x) {
+    return border_fraction(x, MATRIX_ZONE_COLUMNS, MATRIX_ZONE_ROWS);
 }
 
 float matrix_row_black_fraction(uint y, uint left, uint right) {
-    uint count = 0u;
-    for (uint x = left; x < right; x++) {
-        uint index = y * MATRIX_ZONE_COLUMNS + x;
-        if (matrix_zone_looks_like_border(index)) {
-            count++;
-        }
-    }
-    return float(count) / float(max(right - left, 1u));
+    return border_fraction(
+        y * MATRIX_ZONE_COLUMNS + left,
+        1u,
+        right - left
+    );
 }
 
 void prepare_matrix_active_region(uint tid) {
