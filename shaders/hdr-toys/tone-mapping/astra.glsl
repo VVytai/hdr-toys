@@ -4136,21 +4136,49 @@ bool outside_panel_bounds(vec2 position, vec2 lower_bound, vec2 upper_bound) {
            any(greaterThan(position, upper_bound));
 }
 
-vec4 draw_histogram(vec2 px) {
-    vec2 origin = vec2(MARGIN * SCALE);
+// Return false with transparent color outside the padded bounds,
+// or opaque black in the padding. Return true inside the panel.
+bool preview_panel_point(
+    vec2 px,
+    vec2 origin,
+    float extent,
+    out vec2 local,
+    out vec4 colour
+) {
     vec2 padding = vec2(PAD * SCALE);
-    vec2 panel_min = origin - padding;
-    vec2 panel_max = origin + vec2(PREVIEW_HISTOGRAM_EXTENT) + padding;
+    local = px - origin;
 
-    if (outside_panel_bounds(px, panel_min, panel_max)) {
-        return vec4(0.0);
+    if (outside_panel_bounds(
+        px,
+        origin - padding,
+        origin + vec2(extent) + padding
+    )) {
+        colour = vec4(0.0);
+        return false;
     }
 
-    vec2 local = px - origin;
+    if (any(lessThan(local, vec2(0.0))) ||
+        any(greaterThanEqual(local, vec2(extent)))) {
+        colour = vec4(0.0, 0.0, 0.0, 1.0);
+        return false;
+    }
 
-    if (local.x < 0.0 || local.x >= PREVIEW_HISTOGRAM_EXTENT ||
-        local.y < 0.0 || local.y >= PREVIEW_HISTOGRAM_EXTENT) {
-        return vec4(0.0, 0.0, 0.0, 1.0);
+    return true;
+}
+
+vec4 draw_histogram(vec2 px) {
+    vec2 origin = vec2(MARGIN * SCALE);
+    vec2 local;
+    vec4 colour;
+
+    if (!preview_panel_point(
+        px,
+        origin,
+        PREVIEW_HISTOGRAM_EXTENT,
+        local,
+        colour
+    )) {
+        return colour;
     }
 
     uint index = min(
@@ -4268,18 +4296,17 @@ vec4 draw_vectorscope(vec2 px) {
         MARGIN * SCALE,
         MARGIN * SCALE + PREVIEW_HISTOGRAM_EXTENT + GAP
     );
-    vec2 padding = vec2(PAD * SCALE);
-    vec2 panel_min = origin - padding;
-    vec2 panel_max = origin + vec2(PREVIEW_VECTORSCOPE_EXTENT) + padding;
+    vec2 local;
+    vec4 colour;
 
-    if (outside_panel_bounds(px, panel_min, panel_max)) {
-        return vec4(0.0);
-    }
-
-    vec2 local = px - origin;
-    if (local.x < 0.0 || local.x >= PREVIEW_VECTORSCOPE_EXTENT ||
-        local.y < 0.0 || local.y >= PREVIEW_VECTORSCOPE_EXTENT) {
-        return vec4(0.0, 0.0, 0.0, 1.0);
+    if (!preview_panel_point(
+        px,
+        origin,
+        PREVIEW_VECTORSCOPE_EXTENT,
+        local,
+        colour
+    )) {
+        return colour;
     }
 
     vec2 unit = (local + 0.5) / PREVIEW_VECTORSCOPE_EXTENT;
