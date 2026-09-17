@@ -1699,16 +1699,10 @@ float temporal_reference_blend_alpha(float delta_time) {
     return temporal_alpha(delta_time, time_constant);
 }
 
-float temporal_scene_confirmation_time() {
+// Scale the scene-change interval with the common minimum time constant.
+float temporal_scene_time(float time_scale) {
     return max(
-        temporal_stable_duration * TEMPORAL_SCENE_CONFIRM_TIME_SCALE,
-        TEMPORAL_MIN_TIME_CONSTANT
-    );
-}
-
-float temporal_scene_adaptation_time() {
-    return max(
-        temporal_stable_duration * TEMPORAL_SCENE_ADAPTATION_TIME_SCALE,
+        temporal_stable_duration * time_scale,
         TEMPORAL_MIN_TIME_CONSTANT
     );
 }
@@ -1741,7 +1735,7 @@ bool temporal_scene_candidate_active(
 void temporal_confirm_scene_change() {
     temporal_clear_scene_candidate();
     metered_scene_adaptation_end_pts = pts_to_uint(
-        PTS + temporal_scene_adaptation_time()
+        PTS + temporal_scene_time(TEMPORAL_SCENE_ADAPTATION_TIME_SCALE)
     );
     metered_scene_fast_response = 1u;
     temporal_reference_operation = TEMPORAL_REFERENCE_REPLACE;
@@ -1771,7 +1765,7 @@ void temporal_process_distances(vec2 distance) {
     float elapsed = PTS - pts_to_float(
         metered_scene_candidate_start_pts
     );
-    if (elapsed >= temporal_scene_confirmation_time()) {
+    if (elapsed >= temporal_scene_time(TEMPORAL_SCENE_CONFIRM_TIME_SCALE)) {
         temporal_confirm_scene_change();
     }
 }
