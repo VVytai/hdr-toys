@@ -639,8 +639,11 @@ float sanitize_bounded(float value, float lower_bound, float upper_bound) {
 // conversion, whose result is undefined there and differs by backend (D3D
 // converts NaN to zero, Vulkan leaves it to the driver). Same shape as
 // pq_to_uint, matrix_zone_value_code and histogram_interval_bounds.
+// Quantization scale for PQ12 intensity statistics.
+const float METERING_CODE_SCALE = 4095.0;
+
 uint to_uint(float x) {
-    return uint(sanitize_bounded(x, 0.0, 1.0) * 4095.0 + 0.5);
+    return uint(sanitize_bounded(x, 0.0, 1.0) * METERING_CODE_SCALE + 0.5);
 }
 
 uint to_histogram_bin(float x) {
@@ -948,6 +951,9 @@ void hook() { analyze_matrix_zone(); }
 // One just-noticeable difference step on the PQ scale.
 const float JND = 1.0 / 720.0;
 
+// Quantization scale for PQ12 intensity statistics.
+const float METERING_CODE_SCALE = 4095.0;
+
 // Histogram statistics.
 const uint METERING_HISTOGRAM_SIZE = 1024u;
 const uint METERING_REDUCTION_SIZE = 256u;
@@ -1065,7 +1071,7 @@ float global_histogram_average_partial(
             targets.x,
             targets.y
         );
-        float value = (float((first + i) << 2u) + 1.5) / 4095.0;
+        float value = (float((first + i) << 2u) + 1.5) / METERING_CODE_SCALE;
         sum += value * float(retained);
         cumulative = next;
     }
@@ -1095,7 +1101,7 @@ float sanitize_bounded(float value, float lower_bound, float upper_bound) {
 uint pq_to_uint(float value) {
     // Reject NaN before the float-to-uint conversion per the file-wide
     // sanitizer contract: a NaN here is undefined in the uint domain.
-    return uint(sanitize_bounded(value, 0.0, 1.0) * 4095.0 + 0.5);
+    return uint(sanitize_bounded(value, 0.0, 1.0) * METERING_CODE_SCALE + 0.5);
 }
 
 // Detect only near-zero, internally uniform zones. Requiring the black
@@ -1473,11 +1479,17 @@ void reduce_histogram_statistics(
         histogram_average = average_partial[0] /
                             float(max(global_retained, 1u));
         metered_min_i = black_bin << 2u;
-        metered_max_i = min((white_bin << 2u) + 3u, 4095u);
-        metered_median_i = min((median_bin << 2u) + 2u, 4095u);
+        metered_max_i = min(
+            (white_bin << 2u) + 3u,
+            uint(METERING_CODE_SCALE)
+        );
+        metered_median_i = min(
+            (median_bin << 2u) + 2u,
+            uint(METERING_CODE_SCALE)
+        );
         metered_diffuse_white_i = min(
             (diffuse_white_bin << 2u) + 2u,
-            4095u
+            uint(METERING_CODE_SCALE)
         );
     }
     barrier();
@@ -1966,8 +1978,11 @@ float metadata_nits_to_pq(float value) {
     return luminance > 0.0 ? pq_eotf_inv(luminance) : 0.0;
 }
 
+// Quantization scale for PQ12 intensity statistics.
+const float METERING_CODE_SCALE = 4095.0;
+
 float to_float(uint x) {
-    return float(x) / 4095.0;
+    return float(x) / METERING_CODE_SCALE;
 }
 
 struct MeteringMetrics {
@@ -3940,8 +3955,11 @@ void hook() {
 // One just-noticeable difference step on the PQ scale.
 const float JND = 1.0 / 720.0;
 
+// Quantization scale for PQ12 intensity statistics.
+const float METERING_CODE_SCALE = 4095.0;
+
 float to_float(uint x) {
-    return float(x) / 4095.0;
+    return float(x) / METERING_CODE_SCALE;
 }
 
 const float m1 = 2610.0 / 4096.0 / 4.0;
