@@ -853,21 +853,25 @@ uint retained_count(
     return last > first ? last - first : 0u;
 }
 
+// A percentile of the declared sample count, floored at one sample so a
+// percentile that rounds to zero still selects a bin instead of none.
+uint percentile_target(uint sample_count, float percentile) {
+    return max(uint(ceil(float(sample_count) * percentile)), 1u);
+}
+
 void publish_matrix_zone(uint zone_index) {
     uint trim = uint(floor(
         float(MATRIX_ZONE_SAMPLE_COUNT) * MATRIX_ZONE_TRIM_PERCENTILE
     ));
     uint lower_target = trim;
     uint upper_target = MATRIX_ZONE_SAMPLE_COUNT - trim;
-    uint low_target = max(
-        uint(ceil(float(MATRIX_ZONE_SAMPLE_COUNT) *
-                  MATRIX_ZONE_LOW_PERCENTILE)),
-        1u
+    uint low_target = percentile_target(
+        MATRIX_ZONE_SAMPLE_COUNT,
+        MATRIX_ZONE_LOW_PERCENTILE
     );
-    uint high_target = max(
-        uint(ceil(float(MATRIX_ZONE_SAMPLE_COUNT) *
-                  MATRIX_ZONE_HIGH_PERCENTILE)),
-        1u
+    uint high_target = percentile_target(
+        MATRIX_ZONE_SAMPLE_COUNT,
+        MATRIX_ZONE_HIGH_PERCENTILE
     );
 
     uint cumulative = 0u;
@@ -1387,27 +1391,30 @@ void publish_coarse_histogram(uint tid) {
         histogram_prefix[last_block] - cumulative_before;
 }
 
+// A percentile of the declared sample count, floored at one sample so a
+// percentile that rounds to zero still selects a bin instead of none.
+uint percentile_target(uint sample_count, float percentile) {
+    return max(uint(ceil(float(sample_count) * percentile)), 1u);
+}
+
 void locate_percentiles(uint tid, uint first, uvec4 counts) {
     uint cumulative_before = tid == 0u ? 0u : histogram_prefix[tid - 1u];
     uint cumulative = histogram_prefix[tid];
-    uint black_target = max(
-        uint(ceil(float(METERING_SAMPLE_COUNT) * METERING_BLACK_PERCENTILE)),
-        1u
+    uint black_target = percentile_target(
+        METERING_SAMPLE_COUNT,
+        METERING_BLACK_PERCENTILE
     );
-    uint white_target = max(
-        uint(ceil(float(METERING_SAMPLE_COUNT) * METERING_WHITE_PERCENTILE)),
-        1u
+    uint white_target = percentile_target(
+        METERING_SAMPLE_COUNT,
+        METERING_WHITE_PERCENTILE
     );
-    uint median_target = max(
-        uint(ceil(float(METERING_SAMPLE_COUNT) * METERING_MEDIAN_PERCENTILE)),
-        1u
+    uint median_target = percentile_target(
+        METERING_SAMPLE_COUNT,
+        METERING_MEDIAN_PERCENTILE
     );
-    uint diffuse_white_target = max(
-        uint(ceil(
-            float(METERING_SAMPLE_COUNT) *
-            METERING_DIFFUSE_WHITE_PERCENTILE
-        )),
-        1u
+    uint diffuse_white_target = percentile_target(
+        METERING_SAMPLE_COUNT,
+        METERING_DIFFUSE_WHITE_PERCENTILE
     );
     if (cumulative_before < black_target && cumulative >= black_target) {
         black_bin = find_percentile_bin(
