@@ -2006,6 +2006,11 @@ struct MeteringMetrics {
     float diffuse_white;
 };
 
+// Clamp positive measurements; preserve zero as the missing-value sentinel.
+float clamp_measured(float value, float lower, float upper) {
+    return value > 0.0 ? clamp(value, lower, upper) : value;
+}
+
 MeteringMetrics resolve_metering_metrics() {
     MeteringMetrics metrics;
     float pq_peak = sanitize_metadata_pq(max_pq_y);
@@ -2119,41 +2124,33 @@ MeteringMetrics resolve_metering_metrics() {
     // bound.
     metrics.max_rgb = max(metrics.max_rgb, metrics.maximum);
     metrics.minimum = min(metrics.minimum, metrics.maximum);
-    if (metrics.average > 0.0) {
-        metrics.average = clamp(
-            metrics.average,
-            metrics.minimum,
-            metrics.maximum
-        );
-    }
-    if (metrics.histogram_average > 0.0) {
-        metrics.histogram_average = clamp(
-            metrics.histogram_average,
-            metrics.minimum,
-            metrics.maximum
-        );
-    }
-    if (metrics.matrix_average > 0.0) {
-        metrics.matrix_average = clamp(
-            metrics.matrix_average,
-            metrics.minimum,
-            metrics.maximum
-        );
-    }
-    if (metrics.median > 0.0) {
-        metrics.median = clamp(
-            metrics.median,
-            metrics.minimum,
-            metrics.maximum
-        );
-    }
-    if (metrics.diffuse_white > 0.0) {
-        metrics.diffuse_white = clamp(
-            metrics.diffuse_white,
-            metrics.median,
-            metrics.maximum
-        );
-    }
+    metrics.average = clamp_measured(
+        metrics.average,
+        metrics.minimum,
+        metrics.maximum
+    );
+    metrics.histogram_average = clamp_measured(
+        metrics.histogram_average,
+        metrics.minimum,
+        metrics.maximum
+    );
+    metrics.matrix_average = clamp_measured(
+        metrics.matrix_average,
+        metrics.minimum,
+        metrics.maximum
+    );
+    metrics.median = clamp_measured(
+        metrics.median,
+        metrics.minimum,
+        metrics.maximum
+    );
+    // diffuse_white sits above the median by definition, so it is the one
+    // field whose lower bound is the median rather than the minimum.
+    metrics.diffuse_white = clamp_measured(
+        metrics.diffuse_white,
+        metrics.median,
+        metrics.maximum
+    );
 
     return metrics;
 }
