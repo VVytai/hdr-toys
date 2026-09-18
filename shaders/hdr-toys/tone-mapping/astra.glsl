@@ -1892,6 +1892,39 @@ float clamp_measured(float value, float lower, float upper) {
     return value > 0.0 ? clamp(value, lower, upper) : value;
 }
 
+// Bound measured averages and percentiles by the robust intensity range.
+// In level-1 mixed mode, the average may come from metadata.
+void normalize_metering_metrics(inout MeteringMetrics metrics) {
+    metrics.max_rgb = max(metrics.max_rgb, metrics.maximum);
+    metrics.minimum = min(metrics.minimum, metrics.maximum);
+    metrics.average = clamp_measured(
+        metrics.average,
+        metrics.minimum,
+        metrics.maximum
+    );
+    metrics.histogram_average = clamp_measured(
+        metrics.histogram_average,
+        metrics.minimum,
+        metrics.maximum
+    );
+    metrics.matrix_average = clamp_measured(
+        metrics.matrix_average,
+        metrics.minimum,
+        metrics.maximum
+    );
+    metrics.median = clamp_measured(
+        metrics.median,
+        metrics.minimum,
+        metrics.maximum
+    );
+    // Keep P80 at or above P50.
+    metrics.diffuse_white = clamp_measured(
+        metrics.diffuse_white,
+        metrics.median,
+        metrics.maximum
+    );
+}
+
 MeteringMetrics resolve_metering_metrics() {
     MeteringMetrics metrics;
     float pq_peak = sanitize_metadata_pq(max_pq_y);
@@ -1906,13 +1939,8 @@ MeteringMetrics resolve_metering_metrics() {
     bool has_pq_peak = pq_peak > 0.0;
     bool has_scene_peak = any(greaterThan(scene_max_rgb, vec3(0.0)));
 
-    // This must match the peak-metadata conditions on the intensity-map pass
-    // (its WHEN header with the max_pq_y 0 > ! ... expression). Both sides
-    // treat NaN and negative metadata as absent, so a skipped pass can never
-    // make the resolver consume stale METERED values, and force_metering
-    // waives the absence test identically on both sides. The two
-    // expressions cannot share code; any change to one side must update the
-    // other.
+    // Match the intensity-map pass's peak-metadata test.
+    // Preview computes measurements without changing this selection.
     bool use_measured = enable_metering > 0 &&
                         (force_metering > 0 ||
                          (!has_pq_peak && !has_scene_peak));
@@ -1989,49 +2017,7 @@ MeteringMetrics resolve_metering_metrics() {
         metrics.diffuse_white = 0.0;
     }
 
-    // Enforce the physical ordering assumed by the exposure-limit logarithms.
-    // The max/min ordering lines are no-ops for consistent inputs. The
-    // average clamp is not: it rewrites the metadata average into the
-    // measured band in mixed metadata+measured configurations, and pins the
-    // matrix-refined measured average inside the robust [minimum, maximum]
-    // band in pure measured configurations. force_metering at enable_metering
-    // 1 deliberately lands in the mixed configuration: the extrema come from
-    // measurement while the average (which level 1 does not measure) falls
-    // back to the metadata source.
-    //
-    // This is deliberate: without it, a mixed-path average above the
-    // measured maximum would invert the negative exposure limit
-    // (ev_limit_neg < 0) and force auto exposure to sit at the inverted
-    // bound.
-    metrics.max_rgb = max(metrics.max_rgb, metrics.maximum);
-    metrics.minimum = min(metrics.minimum, metrics.maximum);
-    metrics.average = clamp_measured(
-        metrics.average,
-        metrics.minimum,
-        metrics.maximum
-    );
-    metrics.histogram_average = clamp_measured(
-        metrics.histogram_average,
-        metrics.minimum,
-        metrics.maximum
-    );
-    metrics.matrix_average = clamp_measured(
-        metrics.matrix_average,
-        metrics.minimum,
-        metrics.maximum
-    );
-    metrics.median = clamp_measured(
-        metrics.median,
-        metrics.minimum,
-        metrics.maximum
-    );
-    // diffuse_white sits above the median by definition, so it is the one
-    // field whose lower bound is the median rather than the minimum.
-    metrics.diffuse_white = clamp_measured(
-        metrics.diffuse_white,
-        metrics.median,
-        metrics.maximum
-    );
+    normalize_metering_metrics(metrics);
 
     return metrics;
 }
