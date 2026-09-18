@@ -1706,13 +1706,7 @@ void temporal_initialize_histogram(uint index, float current) {
 
 void temporal_update_reference_bin(uint index, float current) {
     if (temporal_reference_operation == TEMPORAL_REFERENCE_BLEND) {
-        // A non-finite sample has to be replaced rather than blended: mix()
-        // propagates NaN forever, and a NaN reference makes every distance
-        // comparison false, which would also keep the REPLACE path below out
-        // of reach. Every other piece of temporal state either sits behind a
-        // validity flag or a timestamp window, or converges on a value derived
-        // from the current frame - that is what lets the state go undeclared,
-        // and this is the one writer that needed help holding it up.
+        // Replace non-finite history instead of propagating it through mix().
         float reference = metered_reference_histogram[index];
         metered_reference_histogram[index] = finite_float(reference)
             ? mix(reference, current, temporal_reference_alpha)
@@ -2229,24 +2223,9 @@ float reset_auto_exposure(float target) {
 }
 
 float stabilize_auto_exposure(float target, bool automatic) {
-    // Manual exposure is clamped to the declared [-64, 64] range, and a
-    // non-finite target snaps to neutral EV instead of poisoning the ramp.
-    //
-    // The curve path uses the complementary policy (hold last valid value,
-    // see stabilize_curve_value): a broken frame must not re-baseline the
-    // whole LUT, while exposure re-baselines at neutral. In practice the
-    // asymmetry is unreachable: a non-finite target with a finite PTS
-    // requires a non-finite user parameter, and on the reachable broken
-    // frame (non-finite PTS) both paths render the raw target and recover
-    // with the same two-frame contract below.
+    // Clamp EV to the declared range; use neutral EV for a non-finite target.
     target = finite_float(target) ? clamp(target, -64.0, 64.0) : 0.0;
-    // Self-healing guard: VAR-backed state can hold NaN across shader
-    // reloads. Treat such state as uninitialized rather than mixing NaN into
-    // the ramp. The pts field needs its own check: a NaN there fails every
-    // range comparison below and re-poisons smoothed_ev through the mix.
-    //
-    // Likely unreachable from in-shader writes (every write site produces a
-    // finite value), kept as defense.
+    // Discard non-finite exposure history or timestamps.
     if (smoothed_ev_valid > 0u &&
         (!finite_float(smoothed_ev) ||
          !finite_float(uintBitsToFloat(smoothed_ev_pts)))) {
@@ -2254,16 +2233,7 @@ float stabilize_auto_exposure(float target, bool automatic) {
     }
 
     if (!finite_float(PTS)) {
-        // Only the valid flag matters here: every smoothed_ev read is gated
-        // on smoothed_ev_valid, so the value and pts writes are dead. The
-        // next finite frame re-baselines via reset_auto_exposure.
-        //
-        // Recovery contract: an unknown-PTS frame (seek/preroll redraw)
-        // renders the raw target directly for two frames - this one, then
-        // one more through reset_auto_exposure - before the ramp resumes.
-        // A scene change coinciding with such a frame therefore snaps
-        // instead of ramping. This replaces the pre-diff behavior of
-        // permanently poisoning smoothed_ev with NaN.
+        // Bypass smoothing on invalid PTS. The next finite PTS sets a new baseline.
         smoothed_ev_valid = 0u;
         return target;
     }
@@ -2300,27 +2270,13 @@ void record_curve_temporal_pts() {
     curve_temporal_valid = 1u;
 }
 
-void invalidate_curve_temporal() {
-    // Only the valid flag is load-bearing: the pts read in
-    // prepare_curve_temporal sits behind the valid == 1 gate, and
-    // record_curve_temporal_pts rewrites pts before any such read.
-    curve_temporal_valid = 0u;
-}
-
 void prepare_curve_temporal() {
     curve_temporal_reset = 1u;
 
     if (!finite_float(PTS)) {
-        // Reset stays armed through the invalidation below, so an
-        // unknown-PTS frame hard-writes the whole 1024-point curve LUT
-        // for two frames (this one and the next) before the normal ramp
-        // resumes. The alpha write is deliberately omitted: every path
-        // that clears reset rewrites alpha in the same invocation, and
-        // every reset == 1 path hard-writes without reading it.
-        //
-        // This recovery replaces the pre-diff behavior of permanently
-        // poisoning smoothed_curve with NaN.
-        invalidate_curve_temporal();
+        // Keep reset active on invalid PTS and on the next finite-PTS frame.
+        // Reset paths overwrite curve values without reading alpha.
+        curve_temporal_valid = 0u;
         return;
     }
 
@@ -3032,18 +2988,10 @@ bool finite_float(float value) {
 }
 
 float stabilize_curve_value(int index, float target) {
-    // curve_temporal_reset stays armed until a frame has hard-written the
-    // whole row, so reset > 0 implies the SSBO is either uninitialized or
-    // being re-baselined: never read the curve history in that case.
+    // Read history only when reset is inactive.
     bool history_valid = curve_temporal_reset == 0u &&
                          finite_float(smoothed_curve[index]);
-    // Hold the last valid value on a non-finite target. This is deliberate:
-    // unlike exposure, which snaps to neutral (see stabilize_auto_exposure),
-    // a broken frame must not re-baseline the whole curve LUT. The snap/hold
-    // asymmetry is unreachable in practice: a non-finite target with a
-    // finite PTS requires a non-finite user parameter, and the reachable
-    // broken frame (non-finite PTS) hard-writes the raw target on both
-    // paths.
+    // On a non-finite target, hold valid history or use zero.
     if (!finite_float(target)) {
         target = history_valid ? smoothed_curve[index] : 0.0;
     }
@@ -3058,9 +3006,7 @@ float stabilize_curve_value(int index, float target) {
         target,
         curve_temporal_alpha
     );
-    // Likely unreachable from in-shader writes: both mix operands are
-    // finite here and curve_temporal_alpha is in [0, 1]. Kept as defense
-    // against non-finite state crossing a shader reload.
+    // Fall back to the target if interpolation produces a non-finite value.
     value = finite_float(value) ? value : target;
     smoothed_curve[index] = value;
     return value;
