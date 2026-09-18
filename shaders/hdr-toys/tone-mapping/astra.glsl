@@ -1527,21 +1527,9 @@ void temporal_set_scalar_state(uint histogram_valid) {
     metered_scene_fast_response = 0u;
 }
 
-void temporal_initialize_scalar_state() {
+void temporal_initialize_frame() {
     temporal_set_scalar_state(1u);
     metered_temporal_pts = pts_to_uint(PTS);
-}
-
-void temporal_invalidate_state() {
-    // Only the validity flag is load-bearing here: the next finite-PTS
-    // frame takes temporal_initialize_frame, which rewrites pts and the
-    // scene flags via temporal_set_scalar_state before any read. Keep pts
-    // out of the shared reset so invalidation does not perform a dead write.
-    temporal_set_scalar_state(0u);
-}
-
-void temporal_initialize_frame() {
-    temporal_initialize_scalar_state();
     temporal_frame_operation = TEMPORAL_FRAME_INITIALIZE;
 }
 
@@ -1681,12 +1669,9 @@ void temporal_prepare_frame() {
     temporal_reference_operation = TEMPORAL_REFERENCE_KEEP;
 
     if (!finite_float(PTS)) {
-        // A discontinuous frame may carry unrelated content. Invalidate and
-        // skip histogram learning entirely (frame operation stays SKIP):
-        // initializing the reference from it could seed a false scene-cut
-        // candidate. The next finite-PTS frame re-initializes from fresh
-        // data via temporal_initialize_frame.
-        temporal_invalidate_state();
+        // Skip histogram learning on invalid PTS; the next finite PTS
+        // initializes the reference and previous-frame distributions.
+        temporal_set_scalar_state(0u);
         return;
     }
 
