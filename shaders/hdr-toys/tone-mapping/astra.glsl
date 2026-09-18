@@ -2285,13 +2285,20 @@ float calculate_auto_exposure(MeteringMetrics metrics) {
     );
 }
 
+// Automatic exposure requires zero manual override and positive average/anchor.
+bool automatic_exposure_enabled(MeteringMetrics metrics) {
+    return exposure_value == 0.0 &&
+           metrics.average > 0.0 &&
+           auto_exposure_anchor > 0.0;
+}
+
 float resolve_exposure(MeteringMetrics metrics) {
     // A non-zero external value replaces automatic exposure entirely.
     if (exposure_value != 0.0) {
         return exposure_value;
     }
 
-    if (metrics.average <= 0.0 || auto_exposure_anchor <= 0.0) {
+    if (!automatic_exposure_enabled(metrics)) {
         return 0.0;
     }
 
@@ -2477,12 +2484,6 @@ void apply_exposure_to_range(inout MeteringMetrics metrics, float scale) {
     metrics.maximum = apply_exposure_to_pq(metrics.maximum, scale);
     metrics.max_rgb = apply_exposure_to_pq(metrics.max_rgb, scale);
     metrics.minimum = apply_exposure_to_pq(metrics.minimum, scale);
-}
-
-bool automatic_exposure_enabled(MeteringMetrics metrics) {
-    return exposure_value == 0.0 &&
-           metrics.average > 0.0 &&
-           auto_exposure_anchor > 0.0;
 }
 
 void publish_metering_metadata(MeteringMetrics metrics) {
