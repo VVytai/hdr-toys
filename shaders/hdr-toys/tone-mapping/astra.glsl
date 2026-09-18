@@ -769,21 +769,27 @@ const uint MATRIX_ZONE_COUNT = MATRIX_ZONE_COLUMNS * MATRIX_ZONE_ROWS;
 const uint MATRIX_ZONE_SAMPLE_COUNT = 16u * 16u;
 const uint MATRIX_ZONE_HISTOGRAM_SIZE = 64u;
 
-// Pack a 15-bit PQ sum and a 9-bit sample count into each histogram uint.
-// A bin can contain all 256 samples without a count carry, while the maximum
-// packed sum remains below uint overflow. This preserves sub-bin precision
-// without adding a second shared atomic per sample.
+// Use 9 low bits for the count and 23 high bits for the sum.
+// Each sample contributes a 15-bit PQ value; a bin holds at most 256 samples.
 const uint MATRIX_ZONE_COUNT_BITS = 9u;
 const uint MATRIX_ZONE_COUNT_MASK =
     (1u << MATRIX_ZONE_COUNT_BITS) - 1u;
-const uint MATRIX_ZONE_HISTOGRAM_SHIFT = 9u;
+
+// Map 15-bit values to 64 bins independently of the packed count field.
+const uint MATRIX_ZONE_VALUE_BITS = 15u;
+const uint MATRIX_ZONE_HISTOGRAM_BITS = 6u;
+const uint MATRIX_ZONE_HISTOGRAM_SHIFT =
+    MATRIX_ZONE_VALUE_BITS - MATRIX_ZONE_HISTOGRAM_BITS;
+
+// Full scale of the 15-bit code one sample contributes.
 const float MATRIX_ZONE_VALUE_SCALE = 32767.0;
 const float MATRIX_ZONE_TRIM_PERCENTILE = 0.05;
 const float MATRIX_ZONE_LOW_PERCENTILE = 0.10;
 const float MATRIX_ZONE_HIGH_PERCENTILE = 0.90;
 const vec2 MATRIX_METERING_SIZE = vec2(256.0, 144.0);
 
-// Each entry contains (sum_of_15_bit_values << 9) | sample_count.
+// Each entry contains (sum_of_15_bit_values << MATRIX_ZONE_COUNT_BITS)
+// | sample_count.
 shared uint zone_histogram[MATRIX_ZONE_HISTOGRAM_SIZE];
 
 // Ordered-comparison sanitizer; see the metering intensity pass.
