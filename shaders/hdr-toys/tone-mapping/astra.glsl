@@ -2089,6 +2089,33 @@ float limit_average_exposure(
     return clamp(exposure, -ev_limit_neg, ev_limit_pos);
 }
 
+// Limit histogram-branch darkening by the retained highlight headroom.
+float histogram_negative_exposure_limit(
+    MeteringMetrics metrics,
+    float maximum
+) {
+    float histogram_negative_limit = auto_exposure_limit_negative;
+    bool has_content_white = metrics.median > 0.0 &&
+                             metrics.diffuse_white > 0.0;
+    if (auto_exposure_headroom_retention > 0.0 && has_content_white) {
+        float highlight_headroom = max(
+            log2(maximum / max(reference_white, 1e-6)),
+            0.0
+        );
+        float retained_headroom = clamp(
+            auto_exposure_headroom_retention,
+            0.0,
+            1.0
+        );
+        histogram_negative_limit = min(
+            histogram_negative_limit,
+            (1.0 - retained_headroom) * highlight_headroom
+        );
+    }
+
+    return histogram_negative_limit;
+}
+
 float calculate_auto_exposure(MeteringMetrics metrics) {
     float reference_iz = iz_eotf_inv(reference_white);
     float reference_j = I_to_J(reference_iz);
@@ -2115,24 +2142,10 @@ float calculate_auto_exposure(MeteringMetrics metrics) {
         metrics
     );
 
-    float histogram_negative_limit = auto_exposure_limit_negative;
-    bool has_content_white = metrics.median > 0.0 &&
-                             metrics.diffuse_white > 0.0;
-    if (auto_exposure_headroom_retention > 0.0 && has_content_white) {
-        float highlight_headroom = max(
-            log2(maximum / max(reference_white, 1e-6)),
-            0.0
-        );
-        float retained_headroom = clamp(
-            auto_exposure_headroom_retention,
-            0.0,
-            1.0
-        );
-        histogram_negative_limit = min(
-            histogram_negative_limit,
-            (1.0 - retained_headroom) * highlight_headroom
-        );
-    }
+    float histogram_negative_limit = histogram_negative_exposure_limit(
+        metrics,
+        maximum
+    );
 
     histogram_exposure = limit_average_exposure(
         histogram_exposure,
