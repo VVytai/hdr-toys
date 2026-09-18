@@ -3777,11 +3777,7 @@ const uint PREVIEW_HISTOGRAM_SIZE = 64u;
 const float PREVIEW_HISTOGRAM_BIN_WIDTH = 4.0;
 const float PREVIEW_HISTOGRAM_EXTENT = 256.0;
 
-// The density reference is a fixed 128-bin display scale, deliberately not the
-// current grid size: normalizing by (grid / 128)^2 keeps the trace
-// resolution-invariant, so the grid can be retuned without dimming or
-// brightening it. Deriving the reference from the current grid would cancel the
-// grid out of the ratio and silently defeat that invariance.
+// Normalize density to a fixed 128x128 reference grid.
 const uint PREVIEW_VECTORSCOPE_SIZE = 96u;
 const uint PREVIEW_VECTORSCOPE_CHANNEL_COUNT = 4u;
 const float PREVIEW_VECTORSCOPE_DENSITY_REFERENCE_SIZE = 128.0;
@@ -3800,11 +3796,7 @@ vec4 draw_highlights(float value) {
         to_float(metered_avg_i),
         to_float(metered_min_i)
     );
-    // The extrema tints use directional bounds - the maximum marks every
-    // pixel at or above it, the minimum every pixel at or below - and
-    // carry a 5-JND approximation toward the midtones: the extrema metrics
-    // are percentile-bin edge codes, not per-pixel values, so a strict
-    // bound left the minimum side permanently empty.
+    // Mark values beyond the percentile bounds with a 5 * JND PQ tolerance.
     vec3 matches = vec3(
         step(metrics.x - 5.0 * JND, value),
         1.0 - step(5.0 * JND, abs(metrics.y - value)),
@@ -4217,28 +4209,15 @@ const uint NUMBER_FIXED_MAX = 9999999u;
 
 uint number_fixed_value(float value) {
     float magnitude = abs(value);
-    // abs(NaN) >= 0.0 is false, so the ternary is a NaN guard, not a
-    // tautology: it renders NaN as 0.00 and keeps uint(NaN), whose value is
-    // undefined, out of the conversion.
-    //
-    // Current callers only pass finite values (EV is clamped to ±64, PQ
-    // rows to [0, 1]), kept as defense.
+    // Convert to hundredths with saturation; map NaN to zero.
     float scaled = magnitude >= 0.0
         ? min(magnitude * 100.0 + 0.5, float(NUMBER_FIXED_MAX))
         : 0.0;
     return uint(scaled);
 }
 
-// A row is drawn as "LABEL:[-]<integer digits>.<two decimals>": four label
-// characters including the colon, one for the minus sign when the number is
-// negative, and three for the decimal point and the two decimals. Keeping them
-// in one place prevents a format or label change from drifting between the
-// width estimate and the glyphs actually drawn.
-//
-// The integer budget is a cap rather than a fixed count: the panel's bounds and
-// its early-out are sized from the widest row they allow, so a longer number
-// would be cut off rather than widen the panel. The largest row is a PQ code at
-// 10000 nits.
+// Number format: a three-character label, colon, optional sign,
+// up to five integer digits, and two decimal places.
 const float LABEL_CHARACTERS = 4.0;
 const float NUMBER_SIGN_CHARACTERS = 1.0;
 const float NUMBER_INTEGER_CHARACTERS = 5.0;
@@ -4265,10 +4244,7 @@ uint decimal_divisor(uint position_from_right) {
     return 1u;
 }
 
-// Resolve only the character covered by this fragment: each fragment pays for
-// one glyph lookup instead of a whole row, so the width estimation cannot force
-// per-pixel character loops. Drawing the row per fragment would repeat those
-// lookups, which grows D3DCompiler's inliner exponentially.
+// Resolve only the numeric character covered by this fragment.
 int number_character(float value, int index) {
     bool negative = value < 0.0;
     uint fixed_value = number_fixed_value(value);
