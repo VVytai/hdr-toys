@@ -3823,7 +3823,21 @@ vec4 draw_highlights(float value) {
 // zones pull the matrix estimate below the histogram average, orange zones
 // pull it above. Active zones tint a small centered rectangle outline, so
 // the video stays visible and neighboring frames never merge.
-// Striped cells have been excluded as presentation borders.
+// Draw zones excluded by the border heuristic.
+vec4 draw_excluded_matrix_zone(vec2 position, vec2 size, vec2 edge_distance) {
+    if (min(edge_distance.x, edge_distance.y) < 1.0) {
+        return vec4(vec3(0.82), 0.55);
+    }
+
+    vec2 oriented_px = position * size;
+    float phase = fract((oriented_px.x + oriented_px.y) / 16.0);
+    float aa = 1.0 / 11.3137085; // 1 px perpendicular to the stripe
+    float stripe = smoothstep(0.5 - aa, 0.5 + aa, phase) *
+                   (1.0 - smoothstep(1.0 - aa, 1.0, phase));
+    return vec4(mix(vec3(0.04), vec3(1.0), stripe), 0.80);
+}
+
+// Striped cells are excluded by the border heuristic.
 vec4 draw_matrix_metering(vec2 position) {
     if (metered_zone_valid == 0u) {
         return vec4(0.0);
@@ -3864,27 +3878,15 @@ vec4 draw_matrix_metering(vec2 position) {
     );
 
     if (zone_weight <= 0.0) {
-        if (min(edge_distance.x, edge_distance.y) < 1.0) {
-            return vec4(vec3(0.82), 0.55);
-        }
-        // Excluded cells stay filled: their content is presentation bars, so
-        // the fill hides nothing meaningful. The high-contrast stripes make
-        // the exclusion unmistakable. Anti-alias each edge over ~1 px so
-        // the 45-degree pixel staircase stays visually straight.
-        vec2 oriented_px = clamped_position * oriented_size;
-        float phase = fract((oriented_px.x + oriented_px.y) / 16.0);
-        float aa = 1.0 / 11.3137085;   // 1 px perpendicular to the stripe
-        float stripe = smoothstep(0.5 - aa, 0.5 + aa, phase) *
-                       (1.0 - smoothstep(1.0 - aa, 1.0, phase));
-        return vec4(mix(vec3(0.04), vec3(1.0), stripe), 0.80);
+        return draw_excluded_matrix_zone(
+            clamped_position,
+            oriented_size,
+            edge_distance
+        );
     }
 
-    // Centered rectangle outline at 30% of the cell with a fixed width.
-    // Each side is clipped to the opposite span so only the rectangle
-    // itself draws: the naive min-union of both axes leaked the sides past
-    // the corners and joined neighboring cells into one continuous lattice.
-    // The difference-driven tint and the weight-driven opacity match the
-    // original fill.
+    // Draw a centered outline at 30% of the cell size; clip each side
+    // to the rectangle span so neighboring outlines remain separate.
     vec2 frame_half_extent = 0.15 * cell_size;
     vec2 center_offset = abs(cell_position - 0.5) * cell_size;
     vec2 perimeter_distance = abs(center_offset - frame_half_extent);
