@@ -4304,33 +4304,19 @@ vec4 draw_row(float value, vec2 origin, vec2 px, ivec3 label) {
         : vec4(0.0);
 }
 
-// A row of the metrics panel. The table below is the single definition of the
-// panel's contents: order, label, value and metering level. The row count, the
-// panel's rows and the widest of them are all read back from it, so a row
-// cannot be drawn without also being measured.
+// Metrics table entry: label, value source, and minimum metering level.
 struct MetricsRow {
     ivec3 label;
     int value;
     int metering;
 };
 
-// The enable_metering level a row appears at: 1 measures the minimum and
-// maximum, 2 adds the histogram and matrix zone statistics on top of them. The
-// panel draws a row once the level has been reached, so this column is also
-// what makes rows come and go.
-//
-// The matrix rows carry no separate "zone data has arrived" level: the pass
-// that fills them is dispatched by the same enable_metering already required
-// here, under the preview_metering that brings the panel out at all, so a
-// drawn row always has data behind it.
+// Minimum enable_metering level required to display a row.
 const int METERING_NONE = 0;
 const int METERING_MINMAX = 1;
 const int METERING_FULL = 2;
 
-// Where a row's number comes from. GLSL has no function pointers, so this is
-// the one thing the table cannot carry: metrics_row_value turns the value tag
-// back into the field it names. Keeping the number out of the table is also
-// what keeps the reads lazy, so a hidden row is never read.
+// Value-source tags resolved by metrics_row_value().
 const int VAL_INPUT_MAX = 0;
 const int VAL_INPUT_MIN = 1;
 const int VAL_INPUT_AVG = 2;
@@ -4354,10 +4340,7 @@ const MetricsRow METRICS_ROWS[] = MetricsRow[](
 
 const int METRICS_ROW_SLOTS = METRICS_ROWS.length();
 
-// A row's number in display units. A PQ row converts its code here rather than
-// carrying a format flag out to the callers, so the glyphs and the width
-// estimate both measure the number that is actually drawn. Together with the
-// table and the VAL tags above, this is everything adding a row needs.
+// Resolve a value in display units: nits, EV, or matrix blend fraction.
 float metrics_row_value(int value) {
     if (value == VAL_INPUT_MAX) return pq_eotf(input_max_i);
     if (value == VAL_INPUT_MIN) return pq_eotf(input_min_i);
@@ -4370,15 +4353,11 @@ float metrics_row_value(int value) {
     return 0.0;
 }
 
-// The rest is machinery over the table: which rows are on screen, and where.
 bool metrics_row_visible(int slot, int metering) {
     return metering >= METRICS_ROWS[slot].metering;
 }
 
-// The panel's rows are the table's rows whose level has been reached, in table
-// order. Counting and indexing them instead of deriving both from the table's
-// shape means the geometry, the drawing and the width estimate cannot disagree
-// about which rows are on screen, wherever a row is inserted.
+// Count visible entries in table order.
 int metrics_row_count(int metering) {
     int count = 0;
     for (int slot = 0; slot < METRICS_ROW_SLOTS; slot++) {
@@ -4389,7 +4368,7 @@ int metrics_row_count(int metering) {
     return count;
 }
 
-// Panel position to table slot.
+// Map a valid visible-row position to its table slot.
 int metrics_row_slot(int position, int metering) {
     int visible = 0;
     for (int slot = 0; slot < METRICS_ROW_SLOTS; slot++) {
@@ -4404,7 +4383,7 @@ int metrics_row_slot(int position, int metering) {
     return 0;
 }
 
-// Draw one panel row, or nothing when its level has not been reached.
+// Draw a visible row; position must be below metrics_row_count(metering).
 vec4 draw_metrics_row(int position, vec2 origin, vec2 px, int metering) {
     int slot = metrics_row_slot(position, metering);
     if (!metrics_row_visible(slot, metering)) {
@@ -4416,15 +4395,12 @@ vec4 draw_metrics_row(int position, vec2 origin, vec2 px, int metering) {
 }
 
 vec4 draw_metrics_panel(vec2 px) {
-    // The widest row the panel is sized for: a full label and the widest
-    // number the format allows.
+    // Maximum width admitted by the number format.
     const float MAX_ROW_WIDTH =
         (LABEL_CHARACTERS + NUMBER_SIGN_CHARACTERS +
          NUMBER_INTEGER_CHARACTERS + NUMBER_DECIMAL_CHARACTERS) *
         (CHAR_W + SPACING);
-    // The row count follows the metering level, which is a setting rather than
-    // a per-frame quantity, so the panel's height and top only move when the
-    // level does.
+    // Size the panel for the rows visible at the current metering level.
     int metering = int(enable_metering);
     int row_count = metrics_row_count(metering);
     float metrics_bottom = HOOKED_size.y - MARGIN * SCALE - CHAR_H * SCALE;
@@ -4448,9 +4424,7 @@ vec4 draw_metrics_panel(vec2 px) {
         return vec4(0.0);
     }
 
-    // The panel's black backing hugs the widest row it is drawing, so the
-    // estimate walks the same table through the same gate as the drawing. The
-    // slot order does not matter here, only which rows are visible.
+    // Fit the backing to the widest visible value.
     float number_w = 0.0;
     for (int slot = 0; slot < METRICS_ROW_SLOTS; slot++) {
         if (!metrics_row_visible(slot, metering)) {
