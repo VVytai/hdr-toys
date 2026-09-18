@@ -2309,16 +2309,7 @@ void prepare_curve_temporal() {
 }
 
 float apply_exposure_to_pq(float value, float scale) {
-    // Compose with metadata_nits_to_pq rather than repeating the
-    // sanitize-then-convert chain: the helper guards non-positive input with
-    // 0.0, where an inline form would leak pq_eotf_inv(0) = 7.3e-7 into the
-    // published black point.
-    //
-    // The sanitize deliberately caps the curve white point at 10000 nits
-    // even under positive exposure: content at the mastering peak maps to
-    // full output white instead of rolling off below an extrapolated white
-    // point. Values above the PQ mastering range cannot reach tone mapping
-    // and would cross the J transform's pole.
+    // Apply exposure in nits, cap at the PQ peak, and preserve the zero sentinel.
     return metadata_nits_to_pq(pq_eotf(value) * scale);
 }
 
@@ -2343,15 +2334,8 @@ void publish_input_metering_metadata(MeteringMetrics metrics) {
     input_avg_i = metrics.average;
 }
 
-// The reverse LUT's lightness axis spans the tone curve's output envelope,
-// which H-K compensation lifts above the neutral white point that output_max_j
-// names: the most chromatic in-gamut colour at the reference white, the
-// Rec.2020 yellow corner, reaches 0.00903 J past it at its worst over the
-// declared 1-1000 nit range. That lift is linear in
-// hk_effect_compensate_scaling, so one slope covers the whole 0-1 range; the
-// remainder pays for LUT sampling and FP16 rounding. tests/test_lut_domain.py
-// recomputes the worst case from this shader's own constants and fails if the
-// margin stops covering it.
+// Extend the reverse LUT above neutral white for H-K-compensated lightness.
+// The margin scales with hk_effect_compensate_scaling.
 const float REVERSE_LUT_HK_LIGHTNESS_MARGIN = 0.0096;
 
 void publish_output_lightness_range() {
