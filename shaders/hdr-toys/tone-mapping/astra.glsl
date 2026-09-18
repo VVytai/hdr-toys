@@ -2759,14 +2759,13 @@ float f_shoulder_rational(
     return y0 + dy * mapped;
 }
 
-float f(
-    float x, float iw, float ib, float ow, float ob,
-    float sw, float hw, float cb
+float evaluate_piecewise_tone_curve(
+    float x, float iw, float ib, float ow, float ob
 ) {
     float midgray   = 0.5 * ow;
-    float shadow    = mix(midgray, ob, sw);
-    float highlight = mix(midgray, ow, hw);
-    float target_slope = f_contrast_slope(cb);
+    float shadow    = mix(midgray, ob, shadow_weight);
+    float highlight = mix(midgray, ow, highlight_weight);
+    float target_slope = f_contrast_slope(contrast_bias);
 
     float x0 = ib;
     float y0 = ob;
@@ -2777,20 +2776,8 @@ float f(
     float x3 = iw;
     float y3 = ow;
 
-    // Pivot the middle line around mid-gray with slope 2^{cb}. Prefer the
-    // configured x junctions; if their y values cross an output endpoint,
-    // move the junction inward along the same line instead of flattening the
-    // requested contrast with an independent y clamp. Note the moved
-    // junction lands exactly on the endpoint, so the toe/shoulder region
-    // between it and x_0/x_3 collapses to a flat clip at that endpoint: the
-    // steep middle line starts at the moved x instead of extending past the
-    // output range. A high contrast_bias can
-    // therefore override the configured junction positions, e.g. with
-    // shadow_weight 1 and cb = 1 at contrast_ratio 1000 the junction moves
-    // to (mid-gray + ob) / 2. At the default reference white this is
-    // J ~= 0.059. The flat clip covers [ib, x1); when ib == ob, that span
-    // occupies about 24.3% of the configured [ob, ow] output interval. A
-    // darker input black extends the clipped span further.
+    // Pivot the middle segment around mid-gray. Move junctions along
+    // the same line when their output values cross an endpoint.
     y1 = midgray + target_slope * (x1 - midgray);
     if (y1 < y0) {
         y1 = y0;
@@ -2802,12 +2789,7 @@ float f(
         x2 = midgray + (y2 - midgray) / target_slope;
     }
 
-    // The clamped pivots keep both junctions on the midgray line, so the
-    // middle-segment slope is exactly target_slope.
-    //
-    // The f_slope recompute could only differ in the collapsed
-    // both-junctions-at-midgray case, where its zero-denominator guard
-    // wrongly returns 1.0.
+    // Preserve the requested slope even when both junctions reach mid-gray.
     float slope = target_slope;
     float intercept = f_intercept(slope, x1, y1);
 
@@ -2815,17 +2797,8 @@ float f(
         return f_linear(x, slope, intercept);
     }
 
-    // The branch conditions guard the segment denominators: the toe is
-    // reached only with y1 > y0 (otherwise the flat clip above returns y0)
-    // and slope_toe < slope, which forces k = dy - slope*dx < 0 and a
-    // positive Suzuki denominator over the whole [x0, x1] span; the shoulder
-    // is reached only with y2 < y3 and slope_shoulder < slope, which forces
-    // normalized_slope > 1, curvature > 0, and a denominator >= 1. A
-    // degenerate dx == 0 (shadow_weight 1 with ib == ob, or highlight_weight
-    // 1 with iw == ow) is deflected by f_slope's zero-denominator guard
-    // returning exactly 1.0, which sends the branch to the linear fallback -
-    // keep that guard value literal and the strict '<' comparisons above, or
-    // a NaN path reopens here.
+    // Clip collapsed output spans. Use a curved segment only when its
+    // endpoint slope is below the middle-segment slope.
     if (x < x1) {
         // Flat clip at the black endpoint; the steep segment begins at x_1.
         if (y1 <= y0) {
@@ -2860,13 +2833,6 @@ float f(
     return x;
 }
 
-float f(float x, float iw, float ib, float ow, float ob) {
-    return f(
-        x, iw, ib, ow, ob,
-        shadow_weight, highlight_weight, contrast_bias
-    );
-}
-
 float evaluate_tone_curve(float x) {
     float ow = output_max_j;
     float ob = output_min_j;
@@ -2876,9 +2842,7 @@ float evaluate_tone_curve(float x) {
     iw = max(iw, ow);
     ib = min(ib, ob);
 
-    float y = f(x, iw, ib, ow, ob);
-
-    return y;
+    return evaluate_piecewise_tone_curve(x, iw, ib, ow, ob);
 }
 
 // LUT atlas layout: a flattened 65^3 RGB-to-Jab LUT, a 129x65x65
