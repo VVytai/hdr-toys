@@ -1029,11 +1029,8 @@ uint pq_to_uint(float value) {
     return uint(sanitize_bounded(value, 0.0, 1.0) * METERING_CODE_SCALE + 0.5);
 }
 
-// Detect only near-zero, internally uniform zones. Requiring the black
-// fraction to reach the occupancy threshold before a column counts as
-// border makes the crop follow presentation bars instead of dark objects
-// inside the picture; the whole-frame average guard avoids classifying a
-// dark shot.
+// Classify near-black, low-spread zones as border candidates.
+// A global-brightness guard limits detection in dark scenes.
 bool matrix_zone_looks_like_border(uint index) {
     float black_limit = min(
         METERING_BORDER_BLACK_MAX,
@@ -1256,9 +1253,8 @@ void publish_matrix_average(uint tid) {
         ? matrix_partial[0].x / matrix_partial[0].y
         : histogram_average;
 
-    // A stronger matrix/global disagreement suggests an intentionally framed
-    // or backlit subject. Keep at least 25% of the whole-frame estimate so the
-    // decision cannot collapse onto a small central region.
+    // Increase matrix weight with matrix/histogram disagreement.
+    // Retain at least 25% histogram weight before the border adjustment.
     float difference = abs(matrix_average - histogram_average);
     float matrix_confidence = matrix_difference_confidence(difference);
     float matrix_weight = mix(
@@ -1266,10 +1262,7 @@ void publish_matrix_average(uint tid) {
         METERING_MATRIX_WEIGHT_MAX,
         matrix_confidence
     );
-    // Edge-connected, uniform black bars are presentation geometry rather
-    // than scene content. When their evidence is strong, rely almost entirely
-    // on the active-region matrix average while retaining a small whole-frame
-    // contribution as a guard against false detection.
+    // Detected borders can raise matrix weight to 95%.
     matrix_weight = mix(
         matrix_weight,
         METERING_BORDER_MATRIX_WEIGHT,
