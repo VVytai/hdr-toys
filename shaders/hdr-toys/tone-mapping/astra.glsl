@@ -586,16 +586,8 @@ uint to_histogram_bin(float x) {
     return min(to_uint(x) >> 2u, 1023u);
 }
 
-// texelFetch is not a sampler read, so nothing clamps it: outside the image it
-// is undefined in SPIR-V and reads as zero under D3D, which would land those
-// samples in the black bin without saying so. The 32x32 block below only tiles
-// the metering map exactly while the downscaling pass pins it to 512x288, and
-// this keeps that coincidence from being load-bearing. Clamping to the edge is
-// what the sampler does for every other read of this map.
-//
-// The extent is queried once per invocation and passed in. glslang keeps one
-// OpImageQuerySizeLod for it; SPIRV-Cross copies it back out per fetch site,
-// because an HLSL GetDimensions has no expression form.
+// Clamp integer coordinates explicitly; texelFetch bypasses sampler addressing.
+// The caller computes the upper bound once for each sampled quad.
 vec2 fetch_metering(ivec2 position, ivec2 last) {
     return (METERING_mul * texelFetch(
         METERING_raw,
@@ -644,8 +636,7 @@ void accumulate_workgroup_metering(vec4 intensities, vec4 maxima) {
 }
 
 void merge_workgroup_histogram(uint tid) {
-    // Accumulate locally first. This replaces one contended global atomic per
-    // metering pixel with at most one global merge per non-empty workgroup bin.
+    // Merge each non-empty workgroup bin with one global atomic.
     for (uint i = tid; i < 1024u; i += 256u) {
         uint count = shistogram[i];
         if (count > 0u) {
@@ -1438,23 +1429,12 @@ void reduce_histogram_statistics(
 }
 
 void refine_average_with_matrix(uint tid) {
-    // Keep synchronization unconditional. D3DCompile cannot prove that an
-    // SSBO-backed validity flag is uniform across the workgroup and rejects
-    // barriers placed after an early return controlled by that flag.
+    // All invocations must participate in the shared-memory barriers.
     prepare_matrix_active_region(tid);
 
     vec2 partial = matrix_zone_partial(tid, histogram_average);
     if (preview_metering > 0u && tid < MATRIX_ZONE_COUNT) {
-        // Keep the spread feeding the preview weight immutable throughout
-        // this pass. A separate preview slot avoids a cross-invocation SSBO
-        // read/write dependency; barrier() alone only orders shared
-        // workgroup state.
-        //
-        // Publishing only while the preview is on cannot expose stale
-        // weights: metered_zone_valid is cleared every frame and set only
-        // by the matrix-zones pass, whose WHEN already includes
-        // preview_metering - the frame the preview toggles on re-runs the
-        // zones pass and republishes fresh weights before any preview read.
+        // Publish weights separately; zone spreads remain read-only in this pass.
         metered_zone_preview_weight[tid] = partial.y;
     }
 
