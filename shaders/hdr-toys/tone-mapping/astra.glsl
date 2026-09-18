@@ -255,26 +255,11 @@
 //!WHEN enable_metering 0 > max_pq_y 0 > ! scene_max_r 0 > scene_max_g 0 > + scene_max_b 0 > + ! * force_metering + * preview_metering +
 //!DESC metering (intensity map)
 
-// The peak conditions above must stay aligned with resolve_metering_metrics'
-// has_pq_peak/has_scene_peak: both treat NaN and negative metadata as
-// absent, so the resolver never consumes METERED while this pass is gated
-// off, and force_metering waives the absence test identically on both
-// sides. The two expressions cannot share code - change both sides together.
-//
-// The alignment covers only the resolver: the histogram, statistics,
-// temporal, and preview passes consume METERING/METERED unconditionally,
-// but in every configuration that gates this pass off their results are
-// discarded or derived from a constant map.
-//
-// WHEN conditions must reference only parameters or the built-in OUTPUT
-// size variable: libplacebo evaluates WHEN before resolving BIND, so a texture
-// reference (e.g. METERING.w) errors out when the producing pass is gated
-// off (libplacebo issue 376). Width/height expressions are safe because
-// they are evaluated only after the binds resolve.
-//
-// Body comments must never contain the header-line marker (two slashes
-// plus an exclamation mark): the parser splits pass bodies at it anywhere
-// in the text.
+// Keep the peak-metadata test aligned with resolve_metering_metrics().
+// Preview also runs metering, but does not force the resolver to use it.
+// BIND METERING gates consumers on the availability of the current map.
+// WHEN is evaluated before BIND; do not query a conditionally absent texture.
+// Keep the header delimiter out of GLSL body comments.
 
 const float m1 = 2610.0 / 4096.0 / 4.0;
 const float m2 = 2523.0 / 4096.0 * 128.0;
@@ -740,20 +725,8 @@ void hook() {
 //!WHEN auto_exposure_anchor 0 > preview_metering + enable_metering 1 > *
 //!DESC metering (matrix zones)
 
-// No metadata-absence conditions here, on either side. The max side rides
-// on this pass's METERING binding: the intensity-map pass gates itself off
-// whenever max_pq_y or scene_max is present and force_metering is off, so
-// this pass never runs while peak metadata exists unless force_metering
-// keeps the metering chain active. The average side needs no condition
-// because it can
-// never occur without the max side: max_pq_y/avg_pq_y are written only
-// together by libplacebo's peak detection (pl_get_detected_hdr_metadata
-// fills both from one buffer and writes nothing when the average is zero),
-// and scene_max/scene_avg both come from mandatory HDR10+ payload fields
-// (maxscl and average_maxrgb). An average-without-maximum state is not
-// representable in either source, so avg absence conditions here would
-// only ever be true in configurations the max conditions already gate
-// off.
+// METERING must exist. Run zones at metering level 2 when automatic
+// exposure has a positive anchor or the preview is enabled.
 
 // A 256x144 analysis grid maps exactly to 16x9 workgroups. Each workgroup
 // builds a compact histogram for one image zone, then publishes a robust mean
