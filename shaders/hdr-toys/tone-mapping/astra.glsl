@@ -321,15 +321,8 @@ vec4 hook() {
 //!WHEN OUTPUT.w 1024 > OUTPUT.h 1024 > + OUTPUT.w 576 > OUTPUT.h 576 > * +
 //!DESC metering (spatial stabilization, halve 1)
 
-// The metering map is reduced to 512x288 by halving rather than in one step: at
-// 4K a single step is a factor of 7.5 per axis taken with one bilinear tap, i.e.
-// point sampling with aliasing. Which pixels survive then depends on the
-// subpixel alignment, so a small moving highlight makes the measured peak jump
-// while nothing in the scene changes. Each halving averages exactly 2×2 before
-// the fixed-size histogram and matrix analysis. The passes are conditional, so
-// only as many run as the source resolution needs: two at 4K, one at 1080p.
-// Testing both dimensions against both landscape thresholds makes the chain
-// orientation-independent before portrait analysis is rotated below.
+// Halve progressively to reduce aliasing before the fixed-size analysis.
+// Test both dimensions so the thresholds also apply to portrait input.
 vec4 hook() { return METERING_tex(METERING_pos); }
 
 //!HOOK OUTPUT
@@ -433,32 +426,11 @@ vec4 hook() { return vec4(sample_metering_downscaled(), 0.0, 1.0); }
 //!WHEN spatial_stable_level 0 >
 //!DESC metering (spatial stabilization, blur, horizontal)
 
-// One pass per direction, sized by spatial_stable_level. The kernel is sized
-// here rather than selected by WHEN: a parameter is an ordinary variable in a
-// hook body, as reference_white and enable_metering already are.
-//
-// The levels are spaced by ratio, not by difference. Perceived blur tracks the
-// ratio of the radius, which is why mip levels and image-processing octaves
-// are geometric. Equal differences over this range would double the radius on
-// the first step and add 25% on the last, which is the opposite of what a
-// strength control should do. Level 1 is one texel of the fixed 512x288
-// metering map and every further level multiplies that by 1.25, so the scale
-// runs from 1.0 to 2.441 texels and the default of 3 sits at 1.562.
-//
-// Three sigma caps the reach at 8 texels and nine bilinear fetches per
-// direction at the maximum, five at the lightest level, and the pairing below
-// reproduces the discrete kernel exactly rather than approximating it.
-//
-// The directions stay separate passes, and the result must still be
-// materialised as METERING: the matrix zones and statistics passes read the
-// same map the histogram does, so folding the vertical half into the histogram
-// pass would leave them reading an unblurred one.
-//
-// The kernel below is duplicated in the vertical pass. Each pass is a separate
-// compilation unit, so it cannot be shared; offset, weight and direction must
-// stay identical across the two or the blur stops being separable and the
-// measured peak starts depending on orientation.
-//
+// Separable Gaussian blur on the 512x288 metering map.
+// Sigma is 1.25^(level - 1), truncated at ceil(3 * sigma) texels.
+// Pair adjacent taps with bilinear sampling; materialize both directions
+// so the histogram, zones, and statistics consume the same filtered map.
+// Keep this scalar kernel synchronized with the vertical pass.
 // [Efficient Gaussian blur with linear sampling](https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/)
 
 const float spatial_stable_sigma_base = 1.0;
@@ -471,8 +443,7 @@ float spatial_stable_weight(float tap, float variance) {
 }
 
 vec4 hook() {
-    // WHEN gates this pass off at zero, so the exponent below never leaves the
-    // level range the header documents.
+    // WHEN excludes level 0.
     float sigma = spatial_stable_sigma_base * pow(
         spatial_stable_sigma_ratio,
         float(spatial_stable_level) - 1.0
@@ -480,10 +451,7 @@ vec4 hook() {
     float variance = sigma * sigma;
     float last_tap = ceil(spatial_stable_reach * sigma);
 
-    // A bilinear fetch at a fractional offset reproduces the two discrete taps
-    // it straddles, so one fetch carries a pair and the loop runs at half the
-    // tap count. The pair's offset is its centre of mass and its weight the
-    // pair sum, which is what makes the substitution exact.
+    // Combine adjacent taps at their weighted centroid.
     vec2 sum = METERING_tex(METERING_pos).xy;
     float weight_sum = 1.0;
     for (uint pair = 1u; 2.0 * float(pair) <= last_tap + 1.0; pair++) {
@@ -503,10 +471,8 @@ vec4 hook() {
         weight_sum += 2.0 * pair_weight;
     }
 
-    // Dividing by the accumulated weight preserves the mean of the map; the
-    // unnormalised Gaussian weights sum to more than one. texOff clamps at the
-    // borders, so an edge texel is counted once per tap that reaches it and
-    // the ratio still cannot leave the input range.
+    // Normalize to preserve constant inputs. Clamped sampling and positive
+    // weights keep the result within the input range.
     return vec4(sum / weight_sum, 0.0, 1.0);
 }
 
@@ -519,8 +485,7 @@ vec4 hook() {
 //!WHEN spatial_stable_level 0 >
 //!DESC metering (spatial stabilization, blur, vertical)
 
-// Same kernel as the horizontal pass above, with direction swapped. Only these
-// two blocks exist now, but they are still a copy: see the note above.
+// Apply the horizontal pass's scalar kernel along the vertical axis.
 
 const float spatial_stable_sigma_base = 1.0;
 const float spatial_stable_sigma_ratio = 1.25;
@@ -532,8 +497,7 @@ float spatial_stable_weight(float tap, float variance) {
 }
 
 vec4 hook() {
-    // WHEN gates this pass off at zero, so the exponent below never leaves the
-    // level range the header documents.
+    // WHEN excludes level 0.
     float sigma = spatial_stable_sigma_base * pow(
         spatial_stable_sigma_ratio,
         float(spatial_stable_level) - 1.0
@@ -541,10 +505,7 @@ vec4 hook() {
     float variance = sigma * sigma;
     float last_tap = ceil(spatial_stable_reach * sigma);
 
-    // A bilinear fetch at a fractional offset reproduces the two discrete taps
-    // it straddles, so one fetch carries a pair and the loop runs at half the
-    // tap count. The pair's offset is its centre of mass and its weight the
-    // pair sum, which is what makes the substitution exact.
+    // Combine adjacent taps at their weighted centroid.
     vec2 sum = METERING_tex(METERING_pos).xy;
     float weight_sum = 1.0;
     for (uint pair = 1u; 2.0 * float(pair) <= last_tap + 1.0; pair++) {
@@ -564,10 +525,8 @@ vec4 hook() {
         weight_sum += 2.0 * pair_weight;
     }
 
-    // Dividing by the accumulated weight preserves the mean of the map; the
-    // unnormalised Gaussian weights sum to more than one. texOff clamps at the
-    // borders, so an edge texel is counted once per tap that reaches it and
-    // the ratio still cannot leave the input range.
+    // Normalize to preserve constant inputs. Clamped sampling and positive
+    // weights keep the result within the input range.
     return vec4(sum / weight_sum, 0.0, 1.0);
 }
 
